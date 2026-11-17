@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CalendarClock, Check, Clock3, History, LoaderCircle, RefreshCw, Settings2, ShieldCheck, SlidersHorizontal, Target, Weight } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarClock, Check, Clock3, History, LoaderCircle, RefreshCw, Settings2, ShieldCheck, SlidersHorizontal, Target, Weight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,10 +83,9 @@ export default function SettingsPage({ isAdmin = false }: { isAdmin?: boolean })
 
   const today = phToday();
   return <main className="mx-auto w-full max-w-7xl space-y-7 px-4 py-6 sm:px-6 lg:px-8">
-    <Link href="/bia/warehouse-kpi" className="text-sm text-muted-foreground hover:text-foreground">← Back to warehouse dashboard</Link>
     <header className="flex flex-col justify-between gap-4 border-b pb-6 sm:flex-row sm:items-end">
       <div className="space-y-1.5"><div className="flex items-center gap-2 text-sm font-medium text-primary"><Settings2 className="size-4" /> Dashboard configuration</div><h1 className="text-3xl font-semibold tracking-tight">Warehouse KPI settings</h1><p className="max-w-2xl text-sm text-muted-foreground">Review scoring targets, KPI weights, and effective-dated configuration versions.</p></div>
-      <Button variant="outline" disabled={busy} onClick={() => { setBusy(true); setError(""); loadSettings().catch(reason => setError(reason instanceof Error ? reason.message : "Refresh failed.")).finally(() => setBusy(false)); }}><RefreshCw className={`mr-2 size-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button>
+      <div className="flex shrink-0 items-center gap-2"><Button asChild variant="outline"><Link href="/bia/warehouse-kpi"><ArrowLeft className="mr-2 size-4" />Back to dashboard</Link></Button><Button variant="outline" disabled={busy} onClick={() => { setBusy(true); setError(""); loadSettings().catch(reason => setError(reason instanceof Error ? reason.message : "Refresh failed.")).finally(() => setBusy(false)); }}><RefreshCw className={`mr-2 size-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button></div>
     </header>
 
     {error && <Alert variant="destructive"><AlertCircle className="size-4" /><AlertDescription>{error}</AlertDescription></Alert>}

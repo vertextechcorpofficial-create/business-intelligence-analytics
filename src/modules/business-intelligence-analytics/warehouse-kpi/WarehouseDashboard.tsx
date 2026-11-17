@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { ChevronDown, Filter } from "lucide-react";
+import { ChevronDown, Filter, Settings } from "lucide-react";
 import {
   Summary,
   SummaryScope,
@@ -276,11 +276,13 @@ export default function WarehouseDashboard({ canManageSettings = false }: { canM
   };
 
   return <div className="mx-auto max-w-7xl space-y-6">
-    <div>
+    <div className="flex items-start justify-between gap-4">
+      <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Warehouse Performance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Executive performance</h1>
-      {canManageSettings && <Button asChild variant="outline" className="mt-3"><Link href="/bia/warehouse-kpi/settings">Warehouse KPI settings</Link></Button>}
       <p className="mt-2 text-sm text-muted-foreground">Backend-calculated performance and measurement coverage for the selected period.</p>
+      </div>
+      {canManageSettings && <Button asChild variant="outline" size="icon" className="shrink-0" aria-label="Warehouse KPI settings" title="Warehouse KPI settings"><Link href="/bia/warehouse-kpi/settings"><Settings className="size-4" /><span className="sr-only">Warehouse KPI settings</span></Link></Button>}
     </div>
 
     <Card className="border bg-background">
