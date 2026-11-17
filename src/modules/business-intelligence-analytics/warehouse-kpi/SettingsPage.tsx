@@ -47,10 +47,10 @@ export default function SettingsPage({ isAdmin = false }: { isAdmin?: boolean })
   const weights = (current?.weights && typeof current.weights === "object" ? current.weights : {}) as Record<string, unknown>;
   const historySorted = useMemo(() => [...(settings?.history ?? [])].sort((a, b) => String(b.effectiveFrom ?? "").localeCompare(String(a.effectiveFrom ?? "")) || Number(b.id) - Number(a.id)), [settings?.history]);
   const timeline = useMemo(() => {
-    if (settings?.history?.length) return [...settings.history]
+    const versions = settings?.history?.length ? [...settings.history]
       .filter(version => !version.cancelledAt)
-      .sort((a, b) => String(a.effectiveFrom ?? "").localeCompare(String(b.effectiveFrom ?? "")) || Number(a.id) - Number(b.id));
-    return [current, next].filter((version): version is Version => Boolean(version));
+      : [current, next].filter((version): version is Version => Boolean(version));
+    return versions.sort((a, b) => Number(b.id) - Number(a.id));
   }, [settings?.history, current, next]);
   const totalWeight = Object.values(weights).reduce<number>((sum, value) => sum + (typeof value === "number" ? value : 0), 0);
 
