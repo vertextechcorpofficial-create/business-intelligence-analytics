@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -11,9 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { ChevronDown, Filter } from "lucide-react";
+import { ChevronDown, Filter, Settings } from "lucide-react";
 import {
-  Branch,
   Summary,
   SummaryScope,
   getPeriodFromSelections,
@@ -235,7 +235,7 @@ function CardCoverage({ endpoint, query, revision, summaryScope }: {
   </div>;
 }
 
-export default function WarehouseDashboard() {
+export default function WarehouseDashboard({ canManageSettings = false }: { canManageSettings?: boolean }) {
   const today = new Date();
   const currentYear = today.getFullYear();
 
@@ -245,9 +245,9 @@ export default function WarehouseDashboard() {
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [revision, setRevision] = useState(0);
 
-  const { data: branchData, error: branchError, loading: branchesLoading } = useWarehouseResource<{ branches: Branch[] }>("branches", revision);
-
   const { from, to } = getPeriodFromSelections(selectedMonths, selectedYear, today);
+  const { data: warehouseData, error: branchError, loading: branchesLoading } = useWarehouseResource<Array<{ id: number; name: string; lastPickingBatchAt: string | null }>>(`warehouses?to=${to}`, revision);
+  const availableBranches = warehouseData ?? [];
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ from, to });
@@ -265,7 +265,6 @@ export default function WarehouseDashboard() {
   const overallStyle = performanceStyles[overallTone];
   const warning = summary ? scopeWarning(summary, allBranches ? [] : selectedBranches, from, to) : "";
 
-  const availableBranches = branchData?.branches ?? [];
   const yearOptions = [currentYear, currentYear - 1, currentYear - 2].filter(y => y >= 1900);
 
   const resetFilters = () => {
@@ -277,10 +276,13 @@ export default function WarehouseDashboard() {
   };
 
   return <div className="mx-auto max-w-7xl space-y-6">
-    <div>
+    <div className="flex items-start justify-between gap-4">
+      <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Warehouse Performance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Executive performance</h1>
       <p className="mt-2 text-sm text-muted-foreground">Backend-calculated performance and measurement coverage for the selected period.</p>
+      </div>
+      {canManageSettings && <Button asChild variant="outline" size="icon" className="shrink-0" aria-label="Warehouse KPI settings" title="Warehouse KPI settings"><Link href="/bia/warehouse-kpi/settings"><Settings className="size-4" /><span className="sr-only">Warehouse KPI settings</span></Link></Button>}
     </div>
 
     <Card className="border bg-background">
@@ -309,7 +311,7 @@ export default function WarehouseDashboard() {
             buttonClassName="w-[200px]"
           />
           <SearchableMultiSelect
-            options={availableBranches.map(b => ({ label: b.name, value: b.id }))}
+            options={availableBranches.map(b => ({ label: `${b.name}${b.lastPickingBatchAt ? ` · last picking ${new Date(b.lastPickingBatchAt).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}` : " · no picking history"}`, value: String(b.id) }))}
             value={allBranches ? [] : selectedBranches}
             onChange={next => {
               setAllBranches(next.length === 0);
@@ -330,7 +332,7 @@ export default function WarehouseDashboard() {
 
     {branchesLoading && <p role="status" className="text-xs text-muted-foreground">Loading branches...</p>}
     {branchError && <Alert variant="destructive"><AlertDescription>
-      <p>{branchError} Computed branches are shown by ID when names are unavailable.</p>
+      <p>{branchError}</p>
       <Button variant="outline" className="mt-2" onClick={() => setRevision(value => value + 1)}>Retry branches</Button>
     </AlertDescription></Alert>}
     {loading && <div role="status" className="space-y-3">
@@ -357,8 +359,9 @@ export default function WarehouseDashboard() {
           </div>
         </div>
         <div className="space-y-1 text-sm text-muted-foreground">
-          <p className="break-words">Computed branches: {scopeLabel(summary, availableBranches)}</p>
+          <p className="break-words">Computed branches: {scopeLabel(summary, availableBranches.map(branch => ({ id: String(branch.id), name: branch.name })))}</p>
           <p>Computed period: {summary.from} to {summary.to} (inclusive)</p>
+          <p>{summary.settingsVersion != null ? `Settings version ${summary.settingsVersion} · effective ${summary.settingsEffectiveFrom ?? "date unavailable"}` : "Scoring uses server defaults."}</p>
         </div>
         <Progress aria-label="Overall score" className={`h-2.5 ${overallStyle.progress}`} value={progress} />
         <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Target: {summary.targetPercent}%</span><span>Weighted performance of {summary.cardsIncluded} of {summary.cardsTotal} KPIs</span></div>
