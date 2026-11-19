@@ -12,13 +12,13 @@ function KpiCard(props: { title: string; value: string; tone?: "default" | "good
 
   const toneClass =
     tone === "good"
-      ? "text-emerald-600"
+      ? "text-emerald-600 dark:text-emerald-400"
       : tone === "bad"
-        ? "text-red-600"
-        : "text-blue-600";
+        ? "text-red-600 dark:text-red-400"
+        : "text-blue-600 dark:text-blue-400";
 
   const bg =
-    tone === "bad" ? "bg-red-50 border-red-200" : "bg-background";
+    tone === "bad" ? "bg-red-500/100/10 border-red-500/30" : "bg-card";
 
   return (
     <Card className={bg}>
@@ -45,3 +45,4 @@ export function SalesReportKpisBar(props: { kpis: SalesReportKpis | null }) {
     </div>
   );
 }
+
