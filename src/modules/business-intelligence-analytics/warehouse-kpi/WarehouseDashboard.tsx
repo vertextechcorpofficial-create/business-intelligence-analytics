@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -11,9 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { ChevronDown, Filter } from "lucide-react";
+import { ChevronDown, Filter, Settings } from "lucide-react";
 import {
-  Branch,
   Summary,
   SummaryScope,
   getPeriodFromSelections,
@@ -53,6 +53,49 @@ function warehouseTriggerLabel(selected: string[], total: number): string {
 }
 
 type Option<V> = { label: string; value: V };
+
+type PerformanceTone = "green" | "yellow" | "orange" | "red" | "neutral";
+
+function performanceTone(value: number | null | undefined, passingTarget: number): PerformanceTone {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "neutral";
+  if (value >= passingTarget) return "green";
+  if (value >= passingTarget * 0.75) return "yellow";
+  if (value >= passingTarget * 0.5) return "orange";
+  return "red";
+}
+
+const performanceStyles: Record<PerformanceTone, { text: string; progress: string; ring: string; badge: string }> = {
+  green: {
+    text: "text-emerald-600 dark:text-emerald-400",
+    progress: "bg-emerald-500/20 [&_[data-slot=progress-indicator]]:bg-emerald-500",
+    ring: "text-emerald-500",
+    badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  },
+  yellow: {
+    text: "text-yellow-600 dark:text-yellow-400",
+    progress: "bg-yellow-500/20 [&_[data-slot=progress-indicator]]:bg-yellow-500",
+    ring: "text-yellow-500",
+    badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+  },
+  orange: {
+    text: "text-orange-600 dark:text-orange-400",
+    progress: "bg-orange-500/20 [&_[data-slot=progress-indicator]]:bg-orange-500",
+    ring: "text-orange-500",
+    badge: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  },
+  red: {
+    text: "text-red-600 dark:text-red-400",
+    progress: "bg-red-500/20 [&_[data-slot=progress-indicator]]:bg-red-500",
+    ring: "text-red-500",
+    badge: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
+  },
+  neutral: {
+    text: "text-muted-foreground",
+    progress: "bg-muted [&_[data-slot=progress-indicator]]:bg-muted-foreground",
+    ring: "text-muted-foreground",
+    badge: "",
+  },
+};
 
 function SearchableMultiSelect<V>({
   options,
@@ -192,7 +235,7 @@ function CardCoverage({ endpoint, query, revision, summaryScope }: {
   </div>;
 }
 
-export default function WarehouseDashboard() {
+export default function WarehouseDashboard({ canManageSettings = false }: { canManageSettings?: boolean }) {
   const today = new Date();
   const currentYear = today.getFullYear();
 
@@ -202,9 +245,9 @@ export default function WarehouseDashboard() {
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [revision, setRevision] = useState(0);
 
-  const { data: branchData, error: branchError, loading: branchesLoading } = useWarehouseResource<{ branches: Branch[] }>("branches", revision);
-
   const { from, to } = getPeriodFromSelections(selectedMonths, selectedYear, today);
+  const { data: warehouseData, error: branchError, loading: branchesLoading } = useWarehouseResource<Array<{ id: number; name: string; lastPickingBatchAt: string | null }>>(`warehouses?to=${to}`, revision);
+  const availableBranches = warehouseData ?? [];
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ from, to });
@@ -218,9 +261,10 @@ export default function WarehouseDashboard() {
   const score = summary?.overallPercent;
   const measured = typeof score === "number" && Number.isFinite(score);
   const progress = measured ? Math.min(100, Math.max(0, score)) : 0;
+  const overallTone = performanceTone(score, summary?.targetPercent ?? 100);
+  const overallStyle = performanceStyles[overallTone];
   const warning = summary ? scopeWarning(summary, allBranches ? [] : selectedBranches, from, to) : "";
 
-  const availableBranches = branchData?.branches ?? [];
   const yearOptions = [currentYear, currentYear - 1, currentYear - 2].filter(y => y >= 1900);
 
   const resetFilters = () => {
@@ -232,10 +276,13 @@ export default function WarehouseDashboard() {
   };
 
   return <div className="mx-auto max-w-7xl space-y-6">
-    <div>
+    <div className="flex items-start justify-between gap-4">
+      <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Warehouse Performance</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Executive performance</h1>
       <p className="mt-2 text-sm text-muted-foreground">Backend-calculated performance and measurement coverage for the selected period.</p>
+      </div>
+      {canManageSettings && <Button asChild variant="outline" size="icon" className="shrink-0" aria-label="Warehouse KPI settings" title="Warehouse KPI settings"><Link href="/bia/warehouse-kpi/settings"><Settings className="size-4" /><span className="sr-only">Warehouse KPI settings</span></Link></Button>}
     </div>
 
     <Card className="border bg-background">
@@ -264,7 +311,7 @@ export default function WarehouseDashboard() {
             buttonClassName="w-[200px]"
           />
           <SearchableMultiSelect
-            options={availableBranches.map(b => ({ label: b.name, value: b.id }))}
+            options={availableBranches.map(b => ({ label: `${b.name}${b.lastPickingBatchAt ? ` · last picking ${new Date(b.lastPickingBatchAt).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}` : " · no picking history"}`, value: String(b.id) }))}
             value={allBranches ? [] : selectedBranches}
             onChange={next => {
               setAllBranches(next.length === 0);
@@ -285,7 +332,7 @@ export default function WarehouseDashboard() {
 
     {branchesLoading && <p role="status" className="text-xs text-muted-foreground">Loading branches...</p>}
     {branchError && <Alert variant="destructive"><AlertDescription>
-      <p>{branchError} Computed branches are shown by ID when names are unavailable.</p>
+      <p>{branchError}</p>
       <Button variant="outline" className="mt-2" onClick={() => setRevision(value => value + 1)}>Retry branches</Button>
     </AlertDescription></Alert>}
     {loading && <div role="status" className="space-y-3">
@@ -303,29 +350,33 @@ export default function WarehouseDashboard() {
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Current Score</h2>
-            <p className="text-3xl font-semibold tabular-nums sm:text-4xl">{percent(score)} <span className="text-sm text-muted-foreground">/ 100%</span></p>
-            <Badge variant="secondary" className={summary.meetsTarget === true ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : undefined}>{summary.meetsTarget === null ? "No measurable data" : summary.meetsTarget ? `Meets ${summary.targetPercent}% target` : `Below ${summary.targetPercent}% target`}</Badge>
+            <p className={`text-3xl font-semibold tabular-nums sm:text-4xl ${overallStyle.text}`}>{percent(score)} <span className="text-sm text-muted-foreground">/ 100%</span></p>
+            <Badge variant="secondary" className={overallStyle.badge}>{!measured ? "No measurable data" : score! >= summary.targetPercent ? `Meets ${summary.targetPercent}% target` : `Below ${summary.targetPercent}% target`}</Badge>
           </div>
           <div role="img" aria-label={measured ? `Current score: ${percent(score)}` : "Current score: no measurable data"} className="relative size-24 shrink-0 sm:size-32">
-            <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true"><circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="12" className="text-muted" /><circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} className="text-emerald-500 motion-safe:transition-[stroke-dashoffset] motion-safe:duration-500" opacity={progress > 0 ? 1 : 0} /></svg>
+            <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true"><circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="12" className="text-muted" /><circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="12" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} className={`${overallStyle.ring} motion-safe:transition-[stroke-dashoffset] motion-safe:duration-500`} opacity={progress > 0 ? 1 : 0} /></svg>
             <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-base font-semibold tabular-nums sm:text-xl">{percent(score)}</span>
           </div>
         </div>
         <div className="space-y-1 text-sm text-muted-foreground">
-          <p className="break-words">Computed branches: {scopeLabel(summary, availableBranches)}</p>
+          <p className="break-words">Computed branches: {scopeLabel(summary, availableBranches.map(branch => ({ id: String(branch.id), name: branch.name })))}</p>
           <p>Computed period: {summary.from} to {summary.to} (inclusive)</p>
+          <p>{summary.settingsVersion != null ? `Settings version ${summary.settingsVersion} · effective ${summary.settingsEffectiveFrom ?? "date unavailable"}` : "Scoring uses server defaults."}</p>
         </div>
-        <Progress aria-label="Overall score" className="h-2.5 bg-emerald-500/20 [&_[data-slot=progress-indicator]]:bg-emerald-500" value={progress} />
+        <Progress aria-label="Overall score" className={`h-2.5 ${overallStyle.progress}`} value={progress} />
         <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Target: {summary.targetPercent}%</span><span>Weighted performance of {summary.cardsIncluded} of {summary.cardsTotal} KPIs</span></div>
         <p className="text-sm text-muted-foreground">Based on {summary.weightCovered}% of the total weight. KPIs without data are not counted.</p>
       </CardContent></Card>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{summary.cards.map((card, index) => {
         const audit = card.key === "housekeeping" || card.key === "sop-safety" ? summarizeAuditCompletion(card) : null;
+        const cardMeasured = card.included && typeof card.scorePercent === "number" && Number.isFinite(card.scorePercent);
+        const cardTone = performanceTone(cardMeasured ? card.scorePercent : null, summary.targetPercent);
+        const cardStyle = performanceStyles[cardTone];
         return <Card key={card.key}>
           <CardHeader><CardTitle className="text-base">{index + 1}. {card.title}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-3xl font-semibold tabular-nums">{card.included ? percent(card.scorePercent) : "--"}</p>
-            <Progress aria-label={`${card.title} score`} value={card.included ? card.scorePercent ?? 0 : 0} />
+            <p className={`text-3xl font-semibold tabular-nums ${cardStyle.text}`}>{cardMeasured ? percent(card.scorePercent) : "--"}</p>
+            <Progress aria-label={`${card.title} score`} className={cardStyle.progress} value={cardMeasured ? card.scorePercent : 0} />
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>Weight: {card.weight}%</span><span className="text-muted-foreground">{card.included ? "Performance score" : "No data reported"}</span></div>
             {(card.key === "loading-readiness" || card.key === "location-compliance") && <CardCoverage key={query} endpoint={card.key} query={query} revision={revision} summaryScope={summary} />}
             {audit && <p className="text-sm text-muted-foreground">{audit}</p>}

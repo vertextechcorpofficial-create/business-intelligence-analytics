@@ -5,9 +5,11 @@ import { COOKIE_NAME, decodeJwtPayload } from "@/lib/auth-utils";
 import { NavUser } from "@/components/shared/app-sidebar/nav-user";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import { canManageWarehouseSettings } from "@/modules/business-intelligence-analytics/warehouse-kpi/settings-access";
 
 export default async function Page() {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
+  const canManageSettings = await canManageWarehouseSettings(token);
   const payload = token ? decodeJwtPayload(token) : null;
   const pick = (keys: string[]) => keys.map(key => payload?.[key]).find(value => typeof value === "string" && value.trim()) as string | undefined;
   const email = pick(["email", "Email"]) || "";
@@ -17,6 +19,6 @@ export default async function Page() {
       <div className="flex min-w-0 items-center gap-2 overflow-hidden px-3 sm:px-4"><SidebarTrigger className="-ml-1 shrink-0" /><Separator orientation="vertical" className="mr-2 hidden data-[orientation=vertical]:h-4 sm:block" /><Breadcrumb className="min-w-0"><BreadcrumbList className="flex-nowrap"><BreadcrumbItem className="hidden md:block"><BreadcrumbLink href="/bia">BIA</BreadcrumbLink></BreadcrumbItem><BreadcrumbSeparator className="hidden md:block" /><BreadcrumbItem className="hidden md:block">SCM</BreadcrumbItem><BreadcrumbSeparator className="hidden md:block" /><BreadcrumbItem className="min-w-0"><BreadcrumbPage className="truncate">Executive Warehouse Dashboard</BreadcrumbPage></BreadcrumbItem></BreadcrumbList></Breadcrumb></div>
       <div className="max-w-[48vw] shrink-0 overflow-hidden px-2 sm:max-w-none sm:px-4"><NavUser user={{ name, email, avatar: "/avatars/shadcn.jpg" }} /></div>
     </header>
-    <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6"><WarehouseDashboard /></main>
+    <main className="min-h-0 flex-1 overflow-auto p-4 md:p-6"><WarehouseDashboard canManageSettings={canManageSettings} /></main>
   </div>;
 }

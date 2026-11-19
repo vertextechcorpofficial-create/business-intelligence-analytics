@@ -10,6 +10,7 @@ const cardSchema = z.object({
   auditsDone: count.nullish(), auditsCounted: count.nullish(),
 });
 const summarySchema = scopeSchema.extend({
+  settingsVersion: z.number().int().nullable().optional(), settingsEffectiveFrom: z.iso.date().nullable().optional(),
   overallPercent: percentage.nullable(), targetPercent: percentage, meetsTarget: z.boolean().nullable(),
   weightCovered: z.number().nonnegative(), cardsIncluded: count, cardsTotal: count, cards: z.array(cardSchema),
 });
@@ -18,8 +19,9 @@ const loadingSchema = scopeSchema.extend({
 });
 const locationSchema = scopeSchema.extend({ expectedChecks: count, submittedChecks: count, missedChecks: count });
 const branchesSchema = z.object({ branches: z.array(z.object({ id: z.string().min(1), name: z.string().min(1) })) });
+const warehousesSchema = z.array(z.object({ id: z.number().int().positive(), name: z.string().min(1), lastPickingBatchAt: z.string().nullable() }));
 const responseSchemas: Record<string, z.ZodType> = {
-  summary: summarySchema, "loading-readiness": loadingSchema, "location-compliance": locationSchema, branches: branchesSchema,
+  summary: summarySchema, "loading-readiness": loadingSchema, "location-compliance": locationSchema, branches: branchesSchema, warehouses: warehousesSchema,
 };
 
 export type SummaryScope = z.infer<typeof scopeSchema>;
@@ -55,7 +57,7 @@ export async function warehouseRequest<T>(path: string, signal?: AbortSignal): P
     if (dataObj && typeof dataObj.message === "string" && dataObj.message.trim()) backendMessage = dataObj.message;
     const statusSpecific = response.status === 401 ? "Session expired or not authenticated." :
       response.status === 403 ? "Access denied." :
-      response.status === 400 ? "Invalid filters. Check the date range and select a single branch." :
+      response.status === 400 ? "Invalid filters. Check the warehouse selection and date range." :
       response.status >= 500 ? "The warehouse service is unavailable. Please retry." :
       undefined;
     throw new Error(backendMessage ?? statusSpecific ?? `Request failed (${response.status}).`);
