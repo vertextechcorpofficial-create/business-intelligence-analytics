@@ -18,7 +18,7 @@ function KpiCard(props: { title: string; value: string; tone?: "default" | "good
         : "text-blue-600 dark:text-blue-400";
 
   const bg =
-    tone === "bad" ? "bg-red-500/100/10 border-red-500/30" : "bg-card";
+    tone === "bad" ? "bg-red-500/10 border-red-500/30" : "bg-card";
 
   return (
     <Card className={bg}>
