@@ -11,12 +11,15 @@ export type ExportCategory =
   | "government"
   | "wage";
 
+export type ColumnAlignment = "left" | "center" | "right";
+
 export interface ExportColumnDefinition {
   id: string;
   label: string;
   category: ExportCategory;
   categoryLabel: string;
   defaultSelected: boolean;
+  defaultAlignment: ColumnAlignment;
   formatValue: (record: IntercompanyEmployeeMasterlistRecord) => string;
 }
 
@@ -28,6 +31,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.employeeId || "",
   },
   {
@@ -36,6 +40,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.biometricId || "N/A",
   },
   {
@@ -44,6 +49,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.rfId || "N/A",
   },
   {
@@ -52,6 +58,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: true,
+    defaultAlignment: "left",
     formatValue: (r) => r.name || "",
   },
   {
@@ -60,6 +67,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.firstName || "",
   },
   {
@@ -68,6 +76,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.lastName || "",
   },
   {
@@ -76,6 +85,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.middleName || "",
   },
   {
@@ -84,6 +94,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "identification",
     categoryLabel: "Identification",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.suffix || "",
   },
 
@@ -94,6 +105,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "organization",
     categoryLabel: "Company & Organization",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.companyCode || "",
   },
   {
@@ -102,6 +114,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "organization",
     categoryLabel: "Company & Organization",
     defaultSelected: true,
+    defaultAlignment: "left",
     formatValue: (r) => r.companyName || "",
   },
   {
@@ -110,6 +123,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "organization",
     categoryLabel: "Company & Organization",
     defaultSelected: true,
+    defaultAlignment: "left",
     formatValue: (r) => r.department || "",
   },
   {
@@ -118,6 +132,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "organization",
     categoryLabel: "Company & Organization",
     defaultSelected: true,
+    defaultAlignment: "left",
     formatValue: (r) => r.position || "",
   },
   {
@@ -126,6 +141,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "organization",
     categoryLabel: "Company & Organization",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => (r.isDepartmentHead ? "Yes" : "No"),
   },
 
@@ -136,6 +152,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.employmentStatus || "",
   },
   {
@@ -144,6 +161,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.rosterStatus || "",
   },
   {
@@ -152,6 +170,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.dateOfHire || "N/A",
   },
   {
@@ -160,6 +179,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: true,
+    defaultAlignment: "right",
     formatValue: (r) => String(r.tenureYears ?? "N/A"),
   },
   {
@@ -168,6 +188,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) => String(r.tenureMonths ?? "N/A"),
   },
   {
@@ -176,6 +197,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.separationDate || "N/A",
   },
   {
@@ -184,6 +206,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "employment",
     categoryLabel: "Employment & Roster",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.separationCause || "N/A",
   },
 
@@ -194,6 +217,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.gender || "Other",
   },
   {
@@ -202,6 +226,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.civilStatus || "N/A",
   },
   {
@@ -210,6 +235,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.birthday || "N/A",
   },
   {
@@ -218,6 +244,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) => (r.age !== null ? String(r.age) : "N/A"),
   },
   {
@@ -226,6 +253,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: true,
+    defaultAlignment: "left",
     formatValue: (r) => r.email || "",
   },
   {
@@ -234,6 +262,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.personalEmail || "N/A",
   },
   {
@@ -242,6 +271,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: true,
+    defaultAlignment: "center",
     formatValue: (r) => r.contact || "",
   },
   {
@@ -250,6 +280,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.city || "",
   },
   {
@@ -258,6 +289,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.province || "",
   },
   {
@@ -266,6 +298,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.barangay || "",
   },
   {
@@ -274,6 +307,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.bloodType || "N/A",
   },
   {
@@ -282,6 +316,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.citizenship || "N/A",
   },
   {
@@ -290,6 +325,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "left",
     formatValue: (r) => r.emergencyContactName || "N/A",
   },
   {
@@ -298,6 +334,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "personal",
     categoryLabel: "Personal & Contact",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.emergencyContactNumber || "N/A",
   },
 
@@ -308,6 +345,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "government",
     categoryLabel: "Government IDs",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.sssNumber || "N/A",
   },
   {
@@ -316,6 +354,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "government",
     categoryLabel: "Government IDs",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.philhealthNumber || "N/A",
   },
   {
@@ -324,6 +363,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "government",
     categoryLabel: "Government IDs",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.pagibigNumber || "N/A",
   },
   {
@@ -332,6 +372,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "government",
     categoryLabel: "Government IDs",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.tinNumber || "N/A",
   },
 
@@ -342,6 +383,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.dailyWage !== undefined
         ? r.wage.dailyWage.toLocaleString("en-US", {
@@ -356,6 +398,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.monthlyRate !== undefined
         ? r.wage.monthlyRate.toLocaleString("en-US", {
@@ -370,6 +413,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.workingDaysPerMonth !== undefined
         ? String(r.wage.workingDaysPerMonth)
@@ -381,6 +425,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => r.wage?.cutoffWageDateUpdate || "N/A",
   },
   {
@@ -389,6 +434,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.philhealthContributionMonthly !== undefined
         ? r.wage.philhealthContributionMonthly.toLocaleString("en-US", {
@@ -403,6 +449,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.sssContributionMonthly !== undefined
         ? r.wage.sssContributionMonthly.toLocaleString("en-US", {
@@ -417,6 +464,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.pagibigContributionMonthly !== undefined
         ? r.wage.pagibigContributionMonthly.toLocaleString("en-US", {
@@ -431,6 +479,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => (r.wage ? (r.wage.isCard ? "Yes" : "No") : "N/A"),
   },
   {
@@ -439,6 +488,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) => (r.wage ? (r.wage.paidHoliday ? "Yes" : "No") : "N/A"),
   },
   {
@@ -447,6 +497,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) =>
       r.wage ? (r.wage.isRegularEmployee ? "Yes" : "No") : "N/A",
   },
@@ -456,6 +507,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.vacationLeavePerYear !== undefined
         ? String(r.wage.vacationLeavePerYear)
@@ -467,6 +519,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "right",
     formatValue: (r) =>
       r.wage?.sickLeavePerYear !== undefined
         ? String(r.wage.sickLeavePerYear)
@@ -478,6 +531,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) =>
       r.wage?.salaryGrade !== null && r.wage?.salaryGrade !== undefined
         ? `Grade ${r.wage.salaryGrade}`
@@ -489,6 +543,7 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
     category: "wage",
     categoryLabel: "Wage Management",
     defaultSelected: false,
+    defaultAlignment: "center",
     formatValue: (r) =>
       r.wage?.salaryStep !== null && r.wage?.salaryStep !== undefined
         ? `Step ${r.wage.salaryStep}`
@@ -582,18 +637,46 @@ export const EXPORT_PRESETS: {
 export function exportToExcel(
   records: IntercompanyEmployeeMasterlistRecord[],
   selectedColumnIds: string[],
-  filename = "intercompany_employee_masterlist.xlsx"
+  optionsOrFilename:
+    | string
+    | {
+        filename?: string;
+        alignments?: Record<string, ColumnAlignment>;
+      } = "intercompany_employee_masterlist.xlsx"
 ) {
   if (!records || records.length === 0) return;
 
   const cols = EXPORT_COLUMNS.filter((c) => selectedColumnIds.includes(c.id));
   if (cols.length === 0) return;
 
+  const filename =
+    typeof optionsOrFilename === "string"
+      ? optionsOrFilename
+      : optionsOrFilename?.filename || "intercompany_employee_masterlist.xlsx";
+  const alignments =
+    typeof optionsOrFilename === "object" ? optionsOrFilename?.alignments : undefined;
+
   const headers = cols.map((c) => c.label);
   const rows = records.map((record) => cols.map((col) => col.formatValue(record)));
 
   const worksheetData = [headers, ...rows];
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  // Apply column alignments and width styling
+  cols.forEach((col, colIdx) => {
+    const align = alignments?.[col.id] || col.defaultAlignment || "left";
+    for (let rowIdx = 0; rowIdx <= records.length; rowIdx++) {
+      const cellAddress = XLSX.utils.encode_cell({ c: colIdx, r: rowIdx });
+      if (worksheet[cellAddress]) {
+        worksheet[cellAddress].s = {
+          alignment: {
+            horizontal: align,
+            vertical: "center",
+          },
+        };
+      }
+    }
+  });
 
   // Auto-fit column widths
   const colWidths = headers.map((header, colIndex) => {
@@ -622,6 +705,7 @@ export function exportToPdf(
     orientation?: "landscape" | "portrait";
     filename?: string;
     title?: string;
+    alignments?: Record<string, ColumnAlignment>;
   }
 ) {
   if (!records || records.length === 0) return;
@@ -666,8 +750,22 @@ export function exportToPdf(
     21
   );
 
+  // Custom column & header alignments
+  const columnStyles: Record<number, { halign: "left" | "center" | "right" }> = {};
+  cols.forEach((col, idx) => {
+    const align = options?.alignments?.[col.id] || col.defaultAlignment || "left";
+    columnStyles[idx] = { halign: align };
+  });
+
   // Table Data
-  const headers = [cols.map((c) => c.label)];
+  const headers = [
+    cols.map((c) => ({
+      content: c.label,
+      styles: {
+        halign: options?.alignments?.[c.id] || c.defaultAlignment || "left",
+      },
+    })),
+  ];
   const body = records.map((record) =>
     cols.map((col) => col.formatValue(record))
   );
@@ -677,12 +775,12 @@ export function exportToPdf(
     head: headers,
     body: body,
     theme: "striped",
+    columnStyles: columnStyles,
     headStyles: {
       fillColor: [14, 116, 144], // Cyan-700
       textColor: [255, 255, 255],
       fontSize: 8,
       fontStyle: "bold",
-      halign: "left",
       cellPadding: 2,
     },
     bodyStyles: {
@@ -725,9 +823,19 @@ export function exportToPdf(
 export function exportToCsvCustom(
   records: IntercompanyEmployeeMasterlistRecord[],
   selectedColumnIds: string[],
-  filename = "intercompany_employee_masterlist.csv"
+  optionsOrFilename:
+    | string
+    | {
+        filename?: string;
+        alignments?: Record<string, ColumnAlignment>;
+      } = "intercompany_employee_masterlist.csv"
 ) {
   if (!records || records.length === 0) return;
+
+  const filename =
+    typeof optionsOrFilename === "string"
+      ? optionsOrFilename
+      : optionsOrFilename?.filename || "intercompany_employee_masterlist.csv";
 
   const cols = EXPORT_COLUMNS.filter((c) => selectedColumnIds.includes(c.id));
   if (cols.length === 0) return;

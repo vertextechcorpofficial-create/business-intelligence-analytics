@@ -27,6 +27,10 @@ import {
   ShieldCheck,
   Coins,
   Loader2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import { IntercompanyEmployeeMasterlistRecord } from "../types";
 import {
@@ -36,6 +40,7 @@ import {
   exportToPdf,
   exportToCsvCustom,
   ExportCategory,
+  ColumnAlignment,
 } from "../utils/exportEngine";
 
 interface EmployeeMasterlistExportModalProps {
@@ -100,6 +105,32 @@ export function EmployeeMasterlistExportModal({
     EXPORT_COLUMNS.filter((c) => c.defaultSelected).map((c) => c.id)
   );
 
+  // Initialize individual column alignments from defaults
+  const [columnAlignments, setColumnAlignments] = useState<Record<string, ColumnAlignment>>(() => {
+    const initial: Record<string, ColumnAlignment> = {};
+    EXPORT_COLUMNS.forEach((col) => {
+      initial[col.id] = col.defaultAlignment;
+    });
+    return initial;
+  });
+
+  const setColumnAlignment = (colId: string, align: ColumnAlignment) => {
+    setColumnAlignments((prev) => ({
+      ...prev,
+      [colId]: align,
+    }));
+  };
+
+  const setAllAlignments = (type: ColumnAlignment | "smart") => {
+    setColumnAlignments(() => {
+      const updated: Record<string, ColumnAlignment> = {};
+      EXPORT_COLUMNS.forEach((col) => {
+        updated[col.id] = type === "smart" ? col.defaultAlignment : type;
+      });
+      return updated;
+    });
+  };
+
   // Group columns by category
   const groupedColumns = useMemo(() => {
     const map = new Map<ExportCategory, typeof EXPORT_COLUMNS>();
@@ -158,15 +189,22 @@ export function EmployeeMasterlistExportModal({
       await new Promise((resolve) => setTimeout(resolve, 80));
 
       if (format === "excel") {
-        exportToExcel(targetRecords, selectedColumnIds, `${filenameBase}.xlsx`);
+        exportToExcel(targetRecords, selectedColumnIds, {
+          filename: `${filenameBase}.xlsx`,
+          alignments: columnAlignments,
+        });
       } else if (format === "pdf") {
         exportToPdf(targetRecords, selectedColumnIds, {
           orientation,
           filename: `${filenameBase}.pdf`,
           title: "Intercompany Employee Masterlist Directory",
+          alignments: columnAlignments,
         });
       } else {
-        exportToCsvCustom(targetRecords, selectedColumnIds, `${filenameBase}.csv`);
+        exportToCsvCustom(targetRecords, selectedColumnIds, {
+          filename: `${filenameBase}.csv`,
+          alignments: columnAlignments,
+        });
       }
 
       onOpenChange(false);
@@ -179,7 +217,7 @@ export function EmployeeMasterlistExportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl sm:max-w-3xl p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-2xl sm:max-w-3xl lg:max-w-4xl p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
         {/* Header */}
         <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 p-5 sm:p-6 border-b border-border/60">
           <DialogHeader className="space-y-1">
@@ -326,7 +364,7 @@ export function EmployeeMasterlistExportModal({
                 <button
                   type="button"
                   onClick={selectAll}
-                  className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                  className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium cursor-pointer"
                 >
                   Select All
                 </button>
@@ -334,7 +372,7 @@ export function EmployeeMasterlistExportModal({
                 <button
                   type="button"
                   onClick={deselectAll}
-                  className="text-[11px] text-muted-foreground hover:text-foreground font-medium"
+                  className="text-[11px] text-muted-foreground hover:text-foreground font-medium cursor-pointer"
                 >
                   Clear All
                 </button>
@@ -347,7 +385,7 @@ export function EmployeeMasterlistExportModal({
                   key={preset.id}
                   type="button"
                   onClick={() => applyPreset(preset.id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-background border border-border hover:bg-muted hover:border-cyan-500/50 text-foreground transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-background border border-border hover:bg-muted hover:border-cyan-500/50 text-foreground transition-all cursor-pointer"
                 >
                   <CheckCheck className="h-3 w-3 text-cyan-500" />
                   <span>{preset.name}</span>
@@ -356,7 +394,55 @@ export function EmployeeMasterlistExportModal({
             </div>
           </div>
 
-          {/* 3. Categorized Column Selector Grid */}
+          {/* 3. Column Alignment Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs">
+            <div className="flex items-center gap-1.5 text-foreground font-semibold">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+              <span>Column Alignment:</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                (Adjust per column or apply globally)
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setAllAlignments("smart")}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
+                title="Smart Auto alignments (Numbers right, Codes/Status center, Text left)"
+              >
+                Smart Auto
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllAlignments("left")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Align all columns to the left"
+              >
+                <AlignLeft className="h-3 w-3" />
+                <span>All Left</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllAlignments("center")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Align all columns to center"
+              >
+                <AlignCenter className="h-3 w-3" />
+                <span>All Center</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllAlignments("right")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Align all columns to the right"
+              >
+                <AlignRight className="h-3 w-3" />
+                <span>All Right</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Categorized Column Selector Grid */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-bold text-foreground">
@@ -403,7 +489,7 @@ export function EmployeeMasterlistExportModal({
                           <button
                             type="button"
                             onClick={() => toggleCategory(category)}
-                            className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                            className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium cursor-pointer"
                           >
                             {allSelected ? "Deselect Group" : "Select Group"}
                           </button>
@@ -413,21 +499,84 @@ export function EmployeeMasterlistExportModal({
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {columns.map((col) => {
                             const checked = selectedColumnIds.includes(col.id);
+                            const currentAlign = columnAlignments[col.id] || col.defaultAlignment;
+
                             return (
-                              <label
+                              <div
                                 key={col.id}
-                                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-all border ${
+                                onClick={() => toggleColumn(col.id)}
+                                className={`flex items-center justify-between gap-2 p-2 rounded-lg text-xs cursor-pointer transition-all border ${
                                   checked
                                     ? "bg-cyan-500/5 dark:bg-cyan-950/20 border-cyan-500/30 text-foreground font-medium"
                                     : "bg-background border-border/60 text-muted-foreground hover:bg-muted"
                                 }`}
                               >
-                                <Checkbox
-                                  checked={checked}
-                                  onCheckedChange={() => toggleColumn(col.id)}
-                                />
-                                <span className="truncate">{col.label}</span>
-                              </label>
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleColumn(col.id)}
+                                  />
+                                  <span className="truncate" title={col.label}>
+                                    {col.label}
+                                  </span>
+                                </div>
+
+                                {/* Alignment segmented buttons */}
+                                <div
+                                  className={`flex items-center rounded-md border p-0.5 shrink-0 transition-opacity ${
+                                    checked
+                                      ? "border-border/80 bg-background/90 opacity-100"
+                                      : "border-border/40 bg-muted/40 opacity-40 hover:opacity-80"
+                                  }`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    title={`Align ${col.label} Left`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setColumnAlignment(col.id, "left");
+                                    }}
+                                    className={`p-1 rounded transition-colors cursor-pointer ${
+                                      currentAlign === "left"
+                                        ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
+                                  >
+                                    <AlignLeft className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title={`Align ${col.label} Center`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setColumnAlignment(col.id, "center");
+                                    }}
+                                    className={`p-1 rounded transition-colors cursor-pointer ${
+                                      currentAlign === "center"
+                                        ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
+                                  >
+                                    <AlignCenter className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title={`Align ${col.label} Right`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setColumnAlignment(col.id, "right");
+                                    }}
+                                    className={`p-1 rounded transition-colors cursor-pointer ${
+                                      currentAlign === "right"
+                                        ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
+                                  >
+                                    <AlignRight className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
