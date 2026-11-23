@@ -1,0 +1,490 @@
+"use client";
+
+import React, { useState, useMemo } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  FileSpreadsheet,
+  FileText,
+  Table as TableIcon,
+  Download,
+  CheckCheck,
+  Sparkles,
+  Layers,
+  Building2,
+  Briefcase,
+  User,
+  ShieldCheck,
+  Coins,
+  Loader2,
+} from "lucide-react";
+import { IntercompanyEmployeeMasterlistRecord } from "../types";
+import {
+  EXPORT_COLUMNS,
+  EXPORT_PRESETS,
+  exportToExcel,
+  exportToPdf,
+  exportToCsvCustom,
+  ExportCategory,
+} from "../utils/exportEngine";
+
+interface EmployeeMasterlistExportModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  filteredRecords: IntercompanyEmployeeMasterlistRecord[];
+  allRecords: IntercompanyEmployeeMasterlistRecord[];
+}
+
+type ExportFormat = "excel" | "pdf" | "csv";
+type ExportScope = "filtered" | "all";
+
+const CATEGORY_META: Record<
+  ExportCategory,
+  { label: string; icon: React.ElementType; color: string }
+> = {
+  identification: {
+    label: "Identification & Codes",
+    icon: Layers,
+    color: "text-blue-500",
+  },
+  organization: {
+    label: "Company & Organization",
+    icon: Building2,
+    color: "text-cyan-500",
+  },
+  employment: {
+    label: "Employment & Roster",
+    icon: Briefcase,
+    color: "text-emerald-500",
+  },
+  personal: {
+    label: "Personal & Contact Profile",
+    icon: User,
+    color: "text-amber-500",
+  },
+  government: {
+    label: "Government IDs (SSS, PhilHealth, TIN)",
+    icon: ShieldCheck,
+    color: "text-purple-500",
+  },
+  wage: {
+    label: "User Wage Management (user_wage_management)",
+    icon: Coins,
+    color: "text-rose-500",
+  },
+};
+
+export function EmployeeMasterlistExportModal({
+  open,
+  onOpenChange,
+  filteredRecords,
+  allRecords,
+}: EmployeeMasterlistExportModalProps) {
+  const [format, setFormat] = useState<ExportFormat>("excel");
+  const [scope, setScope] = useState<ExportScope>("filtered");
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Initialize selected columns from defaultSelected
+  const [selectedColumnIds, setSelectedColumnIds] = useState<string[]>(() =>
+    EXPORT_COLUMNS.filter((c) => c.defaultSelected).map((c) => c.id)
+  );
+
+  // Group columns by category
+  const groupedColumns = useMemo(() => {
+    const map = new Map<ExportCategory, typeof EXPORT_COLUMNS>();
+    EXPORT_COLUMNS.forEach((col) => {
+      const list = map.get(col.category) || [];
+      list.push(col);
+      map.set(col.category, list);
+    });
+    return map;
+  }, []);
+
+  const toggleColumn = (id: string) => {
+    setSelectedColumnIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleCategory = (category: ExportCategory) => {
+    const cols = groupedColumns.get(category) || [];
+    const catIds = cols.map((c) => c.id);
+    const allSelected = catIds.every((id) => selectedColumnIds.includes(id));
+
+    if (allSelected) {
+      setSelectedColumnIds((prev) => prev.filter((id) => !catIds.includes(id)));
+    } else {
+      setSelectedColumnIds((prev) => Array.from(new Set([...prev, ...catIds])));
+    }
+  };
+
+  const applyPreset = (presetId: string) => {
+    const preset = EXPORT_PRESETS.find((p) => p.id === presetId);
+    if (preset) {
+      setSelectedColumnIds(preset.columnIds);
+    }
+  };
+
+  const selectAll = () => {
+    setSelectedColumnIds(EXPORT_COLUMNS.map((c) => c.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedColumnIds([]);
+  };
+
+  const targetRecords = scope === "filtered" ? filteredRecords : allRecords;
+
+  const handleExecuteExport = async () => {
+    if (selectedColumnIds.length === 0 || targetRecords.length === 0) return;
+    setIsExporting(true);
+
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filenameBase = `intercompany_employee_masterlist_${dateStr}`;
+
+      // Allow UI to update before synchronous file generation
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      if (format === "excel") {
+        exportToExcel(targetRecords, selectedColumnIds, `${filenameBase}.xlsx`);
+      } else if (format === "pdf") {
+        exportToPdf(targetRecords, selectedColumnIds, {
+          orientation,
+          filename: `${filenameBase}.pdf`,
+          title: "Intercompany Employee Masterlist Directory",
+        });
+      } else {
+        exportToCsvCustom(targetRecords, selectedColumnIds, `${filenameBase}.csv`);
+      }
+
+      onOpenChange(false);
+    } catch (err) {
+      console.error("[Export Error]", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl sm:max-w-3xl p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 p-5 sm:p-6 border-b border-border/60">
+          <DialogHeader className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                <Download className="h-5 w-5" />
+              </span>
+              <div>
+                <DialogTitle className="text-lg font-bold text-foreground">
+                  Custom Export Masterlist
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Choose your preferred format and select custom columns from the User and Wage Management tables.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-5 sm:p-6 space-y-5">
+          {/* 1. Format & Scope Controls */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Format Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-cyan-500" />
+                Export Format
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormat("excel")}
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    format === "excel"
+                      ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 shadow-xs"
+                      : "bg-background border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <FileSpreadsheet className="h-4 w-4 mb-1 text-emerald-600 dark:text-emerald-400" />
+                  <span>Excel (.xlsx)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormat("pdf")}
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    format === "pdf"
+                      ? "bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300 shadow-xs"
+                      : "bg-background border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <FileText className="h-4 w-4 mb-1 text-rose-600 dark:text-rose-400" />
+                  <span>PDF (.pdf)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormat("csv")}
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    format === "csv"
+                      ? "bg-cyan-500/15 border-cyan-500 text-cyan-700 dark:text-cyan-300 shadow-xs"
+                      : "bg-background border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <TableIcon className="h-4 w-4 mb-1 text-cyan-600 dark:text-cyan-400" />
+                  <span>CSV (.csv)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Scope & Options */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-indigo-500" />
+                Data Scope &amp; Layout
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setScope("filtered")}
+                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all text-center ${
+                      scope === "filtered"
+                        ? "bg-primary/10 border-primary text-primary font-semibold"
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Filtered ({filteredRecords.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScope("all")}
+                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all text-center ${
+                      scope === "all"
+                        ? "bg-primary/10 border-primary text-primary font-semibold"
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    All Records ({allRecords.length})
+                  </button>
+                </div>
+
+                {format === "pdf" && (
+                  <div className="flex rounded-xl border border-border p-0.5 bg-background text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setOrientation("landscape")}
+                      className={`px-2 py-1.5 rounded-lg font-medium transition ${
+                        orientation === "landscape"
+                          ? "bg-muted font-bold text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                      title="Landscape Orientation"
+                    >
+                      Landscape
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrientation("portrait")}
+                      className={`px-2 py-1.5 rounded-lg font-medium transition ${
+                        orientation === "portrait"
+                          ? "bg-muted font-bold text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                      title="Portrait Orientation"
+                    >
+                      Portrait
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Quick Presets Toolbar */}
+          <div className="rounded-xl bg-muted/40 border border-border/60 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                Quick Selection Presets
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                >
+                  Select All
+                </button>
+                <span className="text-muted-foreground/40">•</span>
+                <button
+                  type="button"
+                  onClick={deselectAll}
+                  className="text-[11px] text-muted-foreground hover:text-foreground font-medium"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {EXPORT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-background border border-border hover:bg-muted hover:border-cyan-500/50 text-foreground transition-all"
+                >
+                  <CheckCheck className="h-3 w-3 text-cyan-500" />
+                  <span>{preset.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Categorized Column Selector Grid */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-foreground">
+                Customize Included Fields ({selectedColumnIds.length} of {EXPORT_COLUMNS.length} selected)
+              </span>
+              {selectedColumnIds.length === 0 && (
+                <span className="text-xs font-semibold text-rose-500">
+                  Please select at least 1 column
+                </span>
+              )}
+            </div>
+
+            <ScrollArea className="h-72 sm:h-80 pr-3 border border-border/70 rounded-xl bg-muted/10 p-3">
+              <div className="space-y-4">
+                {(Array.from(groupedColumns.entries()) as [ExportCategory, typeof EXPORT_COLUMNS][]).map(
+                  ([category, columns]) => {
+                    const meta = CATEGORY_META[category];
+                    const Icon = meta.icon;
+                    const catIds = columns.map((c) => c.id);
+                    const selectedCount = catIds.filter((id) =>
+                      selectedColumnIds.includes(id)
+                    ).length;
+                    const allSelected = selectedCount === catIds.length;
+
+                    return (
+                      <div
+                        key={category}
+                        className="rounded-xl border border-border/70 bg-card p-3 space-y-2.5"
+                      >
+                        {/* Category Header */}
+                        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                          <div className="flex items-center gap-2">
+                            <Icon className={`h-4 w-4 ${meta.color}`} />
+                            <span className="text-xs font-bold text-foreground">
+                              {meta.label}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0 h-4"
+                            >
+                              {selectedCount}/{columns.length}
+                            </Badge>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(category)}
+                            className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                          >
+                            {allSelected ? "Deselect Group" : "Select Group"}
+                          </button>
+                        </div>
+
+                        {/* Column Checkboxes Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {columns.map((col) => {
+                            const checked = selectedColumnIds.includes(col.id);
+                            return (
+                              <label
+                                key={col.id}
+                                className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-all border ${
+                                  checked
+                                    ? "bg-cyan-500/5 dark:bg-cyan-950/20 border-cyan-500/30 text-foreground font-medium"
+                                    : "bg-background border-border/60 text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={() => toggleColumn(col.id)}
+                                />
+                                <span className="truncate">{col.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <DialogFooter className="p-4 sm:p-5 border-t border-border/60 bg-muted/20 flex items-center justify-between sm:justify-between w-full">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              Target: <strong className="text-foreground">{targetRecords.length}</strong> employees
+            </span>
+            <span>•</span>
+            <span>
+              Columns: <strong className="text-foreground">{selectedColumnIds.length}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={isExporting}
+              className="text-xs border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleExecuteExport}
+              disabled={selectedColumnIds.length === 0 || isExporting || targetRecords.length === 0}
+              className="gap-2 text-xs bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 shadow-xs cursor-pointer font-semibold"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Generating {format.toUpperCase()}...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download {format.toUpperCase()}</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

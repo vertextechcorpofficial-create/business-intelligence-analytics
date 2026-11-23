@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useIntercompanyEmployeeMasterlist } from "./hooks/useIntercompanyEmployeeMasterlist";
 import { EmployeeMasterlistFilters } from "./components/EmployeeMasterlistFilters";
 import { EmployeeMasterlistKpiCards } from "./components/EmployeeMasterlistKpiCards";
@@ -8,11 +8,13 @@ import { CompanyEmployeeCards } from "./components/CompanyEmployeeCards";
 import { EmployeeMasterlistCharts } from "./components/EmployeeMasterlistCharts";
 import { EmployeeMasterlistTable } from "./components/EmployeeMasterlistTable";
 import { EmployeeDetailModal } from "./components/EmployeeDetailModal";
-import { exportEmployeeMasterlistToCsv } from "./utils/exportCsv";
+import { EmployeeMasterlistExportModal } from "./components/EmployeeMasterlistExportModal";
 import { AlertCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function IntercompanyEmployeeMasterlistModule() {
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
   const {
     data,
     loading,
@@ -43,14 +45,6 @@ export function IntercompanyEmployeeMasterlistModule() {
     handleResetFilters,
     handleRefresh,
   } = useIntercompanyEmployeeMasterlist();
-
-  const handleExportCsv = () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    exportEmployeeMasterlistToCsv(
-      filteredRecords,
-      `intercompany_employee_masterlist_${todayStr}.csv`
-    );
-  };
 
   const handleSelectCompanyCard = (companyIdStr: string) => {
     setFilters((prev) => {
@@ -101,7 +95,7 @@ export function IntercompanyEmployeeMasterlistModule() {
         loading={loading}
         onRefresh={handleRefresh}
         onReset={handleResetFilters}
-        onExport={handleExportCsv}
+        onExport={() => setExportModalOpen(true)}
       />
 
       {/* 2. Top Executive KPI Cards */}
@@ -155,6 +149,14 @@ export function IntercompanyEmployeeMasterlistModule() {
         record={selectedRecord}
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
+      />
+
+      {/* 7. Custom Export Modal (Excel, PDF, CSV) with Column Selection */}
+      <EmployeeMasterlistExportModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+        filteredRecords={filteredRecords}
+        allRecords={data?.records || []}
       />
 
       {/* Loading Overlay Hint if initial load */}

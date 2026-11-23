@@ -117,9 +117,9 @@ export async function GET(request: NextRequest) {
     });
 
     const userFields =
-      "user_id,user_fname,user_lname,user_mname,suffix_name,user_department,user_position,user_email,personal_email,user_contact,user_image,is_employee,separation_date,separation_cause,gender,civil_status,user_bday,user_dateOfHire,user_city,user_province,user_brgy,is_deleted,isDeleted,is_department_head,employment_status_id,rf_id,biometric_id";
+      "user_id,user_fname,user_lname,user_mname,suffix_name,user_department,user_position,user_email,personal_email,user_contact,user_image,is_employee,separation_date,separation_cause,gender,civil_status,user_bday,user_dateOfHire,user_city,user_province,user_brgy,is_deleted,isDeleted,is_department_head,employment_status_id,rf_id,biometric_id,user_sss,user_philhealth,user_pagibig,user_tin,blood_type,citizenship,emergency_contact_name,emergency_contact_number";
 
-    // 2. Concurrently query each company's employees, departments, and employment statuses
+    // 2. Concurrently query each company's employees, departments, employment statuses, and wage management
     const companyFetchResults = await Promise.allSettled(
       validCompanies.map(async (company) => {
         const companyId = Number(company.company_id);
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
           compHeaders["Authorization"] = `Bearer ${companyToken}`;
         }
 
-        const [usersRes, departmentsRes, statusesRes] = await Promise.all([
+        const [usersRes, departmentsRes, statusesRes, wagesRes, schedulesRes] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
             `${companyUrl}/items/user?limit=-1&fields=${userFields}`,
             compHeaders,
@@ -151,6 +151,16 @@ export async function GET(request: NextRequest) {
             compHeaders,
             4000
           ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_wage_management?limit=-1&fields=id,user_id,daily_wage,monthly_rate,cutoff_wage_date_update,philhealth_contribution_monthly,sss_contribution_monthly,pagibig_contribution_monthly,isCard,vacation_leave_per_year,sick_leave_per_year,paid_holiday,working_days_per_month,schedule_id,isRegularEmployee`,
+            compHeaders,
+            5000
+          ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/salary_schedules?limit=-1&fields=schedule_id,salary_grade,step,monthly_rate`,
+            compHeaders,
+            4000
+          ),
         ]);
 
         return {
@@ -160,6 +170,8 @@ export async function GET(request: NextRequest) {
           users: usersRes.data,
           departments: departmentsRes.data,
           statuses: statusesRes.data,
+          wages: wagesRes.data,
+          schedules: schedulesRes.data,
           isOnline: usersRes.ok,
         };
       })
@@ -212,6 +224,8 @@ export async function GET(request: NextRequest) {
         users,
         departments,
         statuses,
+        wages = [],
+        schedules = [],
         isOnline,
       } = res.value;
 
@@ -270,6 +284,27 @@ export async function GET(request: NextRequest) {
           ) {
             inactiveStatusIds.add(id);
           }
+        }
+      });
+
+      // Map salary schedules (salary_grade, step)
+      const scheduleMap = new Map<number, { salaryGrade: number | null; salaryStep: number | null }>();
+      schedules.forEach((sc) => {
+        const sId = Number(sc.schedule_id);
+        if (sId) {
+          scheduleMap.set(sId, {
+            salaryGrade: sc.salary_grade ? Number(sc.salary_grade) : null,
+            salaryStep: sc.step ? Number(sc.step) : null,
+          });
+        }
+      });
+
+      // Map wage management records by user_id
+      const wageMap = new Map<number, AnyRec>();
+      wages.forEach((w) => {
+        const uId = Number(w.user_id);
+        if (uId) {
+          wageMap.set(uId, w);
         }
       });
 
@@ -435,6 +470,53 @@ export async function GET(request: NextRequest) {
           grandSeparatedEmployees++;
         }
 
+        // Government IDs & Additional Profile Information from user table
+        const sssNumber = u.user_sss ? String(u.user_sss).trim() : null;
+        const philhealthNumber = u.user_philhealth ? String(u.user_philhealth).trim() : null;
+        const pagibigNumber = u.user_pagibig ? String(u.user_pagibig).trim() : null;
+        const tinNumber = u.user_tin ? String(u.user_tin).trim() : null;
+        const bloodType = u.blood_type ? String(u.blood_type).trim() : null;
+        const citizenship = u.citizenship ? String(u.citizenship).trim() : null;
+        const emergencyContactName = u.emergency_contact_name ? String(u.emergency_contact_name).trim() : null;
+        const emergencyContactNumber = u.emergency_contact_number ? String(u.emergency_contact_number).trim() : null;
+
+        // Wage Management from user_wage_management table
+        const wageRaw = wageMap.get(userId);
+        let wage: IntercompanyEmployeeMasterlistRecord["wage"] = null;
+        if (wageRaw) {
+          const sId = wageRaw.schedule_id ? Number(wageRaw.schedule_id) : null;
+          const sched = sId ? scheduleMap.get(sId) : null;
+          wage = {
+            id: Number(wageRaw.id),
+            userId,
+            dailyWage: parseFloat(String(wageRaw.daily_wage || 0)),
+            monthlyRate: parseFloat(String(wageRaw.monthly_rate || 0)),
+            cutoffWageDateUpdate: wageRaw.cutoff_wage_date_update
+              ? String(wageRaw.cutoff_wage_date_update).slice(0, 10)
+              : null,
+            philhealthContributionMonthly: parseFloat(
+              String(wageRaw.philhealth_contribution_monthly || 0)
+            ),
+            sssContributionMonthly: parseFloat(
+              String(wageRaw.sss_contribution_monthly || 0)
+            ),
+            pagibigContributionMonthly: parseFloat(
+              String(wageRaw.pagibig_contribution_monthly || 0)
+            ),
+            isCard: parseBit(wageRaw.isCard),
+            vacationLeavePerYear: Number(wageRaw.vacation_leave_per_year || 0),
+            sickLeavePerYear: Number(wageRaw.sick_leave_per_year || 0),
+            paidHoliday: parseBit(wageRaw.paid_holiday),
+            workingDaysPerMonth: parseFloat(
+              String(wageRaw.working_days_per_month || 26)
+            ),
+            scheduleId: sId,
+            salaryGrade: sched?.salaryGrade ?? null,
+            salaryStep: sched?.salaryStep ?? null,
+            isRegularEmployee: parseBit(wageRaw.isRegularEmployee),
+          };
+        }
+
         allRecords.push({
           id: `${companyId}-${userId}`,
           userId,
@@ -472,6 +554,15 @@ export async function GET(request: NextRequest) {
           barangay,
           avatar,
           isDepartmentHead,
+          sssNumber,
+          philhealthNumber,
+          pagibigNumber,
+          tinNumber,
+          bloodType,
+          citizenship,
+          emergencyContactName,
+          emergencyContactNumber,
+          wage,
         });
       });
 

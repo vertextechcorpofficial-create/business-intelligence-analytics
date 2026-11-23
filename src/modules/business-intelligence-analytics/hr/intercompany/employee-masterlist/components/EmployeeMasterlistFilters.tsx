@@ -179,10 +179,10 @@ export function EmployeeMasterlistFilters({
             size="sm"
             onClick={onExport}
             disabled={loading || totalRecords === 0}
-            className="h-8 text-xs gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500"
+            className="h-8 text-xs gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white dark:bg-cyan-600 dark:hover:bg-cyan-500 font-semibold shadow-xs"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export CSV</span>
+            <span>Export Report</span>
           </Button>
         </div>
       </div>
