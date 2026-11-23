@@ -14,6 +14,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
+import {
   FileSpreadsheet,
   FileText,
   Table as TableIcon,
@@ -38,6 +56,7 @@ import {
   ListOrdered,
   RotateCcw,
   X,
+  GripVertical,
 } from "lucide-react";
 import { IntercompanyEmployeeMasterlistRecord } from "../types";
 import {
@@ -95,6 +114,143 @@ const CATEGORY_META: Record<
     color: "text-rose-500",
   },
 };
+
+interface SortableColumnRowProps {
+  id: string;
+  col: (typeof EXPORT_COLUMNS)[number];
+  index: number;
+  total: number;
+  align: ColumnAlignment;
+  meta: (typeof CATEGORY_META)[keyof typeof CATEGORY_META];
+  onMoveTop: (id: string) => void;
+  onMoveUp: (id: string) => void;
+  onMoveDown: (id: string) => void;
+  onMoveBottom: (id: string) => void;
+  onRemove: (id: string) => void;
+}
+
+function SortableColumnRow({
+  id,
+  col,
+  index,
+  total,
+  align,
+  meta,
+  onMoveTop,
+  onMoveUp,
+  onMoveDown,
+  onMoveBottom,
+  onRemove,
+}: SortableColumnRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const Icon = meta.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all text-xs select-none",
+        isDragging
+          ? "border-cyan-500 bg-cyan-500/15 shadow-lg z-50 opacity-90 scale-[1.01]"
+          : "border-border/70 bg-card hover:bg-muted/40"
+      )}
+    >
+      {/* Left: Drag Handle + Position Rank Badge + Category Icon + Column Title */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          title="Drag up or down to reorder"
+          className="p-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground hover:bg-muted/80 transition touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+
+        <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
+          #{index + 1}
+        </span>
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${meta.color}`} />
+        <div className="min-w-0 truncate flex items-center gap-2">
+          <span className="font-semibold text-foreground truncate">
+            {col.label}
+          </span>
+          <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">
+            ({meta.label})
+          </span>
+          <Badge
+            variant="outline"
+            className="text-[10px] py-0 px-1.5 h-4 capitalize shrink-0 text-muted-foreground"
+          >
+            Align: {align}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Right: Reorder Action Buttons */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          title="Move to Top"
+          disabled={index === 0}
+          onClick={() => onMoveTop(col.id)}
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
+        >
+          <ChevronsUp className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Move Up"
+          disabled={index === 0}
+          onClick={() => onMoveUp(col.id)}
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
+        >
+          <ArrowUp className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Move Down"
+          disabled={index === total - 1}
+          onClick={() => onMoveDown(col.id)}
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
+        >
+          <ArrowDown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Move to Bottom"
+          disabled={index === total - 1}
+          onClick={() => onMoveBottom(col.id)}
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
+        >
+          <ChevronsDown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title="Remove from export"
+          onClick={() => onRemove(col.id)}
+          className="p-1 rounded-md text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition cursor-pointer ml-1"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function EmployeeMasterlistExportModal({
   open,
@@ -188,6 +344,32 @@ export function EmployeeMasterlistExportModal({
     setSelectedColumnIds((prev) => {
       return EXPORT_COLUMNS.filter((col) => prev.includes(col.id)).map((col) => col.id);
     });
+  };
+
+  // DnD Sensors & Handlers for drag-and-drop reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 4,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSelectedColumnIds((items) => {
+        const oldIndex = items.indexOf(String(active.id));
+        const newIndex = items.indexOf(String(over.id));
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return arrayMove(items, oldIndex, newIndex);
+        }
+        return items;
+      });
+    }
   };
 
   // Group columns by category
@@ -743,93 +925,49 @@ export function EmployeeMasterlistExportModal({
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1 pb-1">
-                      <span>Click arrows to change the exact column sequence in the export file:</span>
+                      <span className="flex items-center gap-1.5">
+                        <GripVertical className="h-3.5 w-3.5 text-cyan-500" />
+                        <span>Drag &amp; drop rows with the handle (⋮⋮) or use arrows to change column order:</span>
+                      </span>
                       <span>Total: <strong>{selectedColumnIds.length}</strong> columns</span>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {selectedColumnIds.map((colId, index) => {
-                        const col = EXPORT_COLUMNS.find((c) => c.id === colId);
-                        if (!col) return null;
-                        const meta = CATEGORY_META[col.category];
-                        const Icon = meta.icon;
-                        const align = columnAlignments[col.id] || col.defaultAlignment;
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={selectedColumnIds}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-1.5">
+                          {selectedColumnIds.map((colId, index) => {
+                            const col = EXPORT_COLUMNS.find((c) => c.id === colId);
+                            if (!col) return null;
+                            const meta = CATEGORY_META[col.category];
+                            const align = columnAlignments[col.id] || col.defaultAlignment;
 
-                        return (
-                          <div
-                            key={col.id}
-                            className="flex items-center justify-between gap-3 p-2 rounded-xl border border-border/70 bg-card hover:bg-muted/40 transition-all text-xs"
-                          >
-                            {/* Left: Position Rank Badge + Category Icon + Column Title */}
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
-                                #{index + 1}
-                              </span>
-                              <Icon className={`h-3.5 w-3.5 shrink-0 ${meta.color}`} />
-                              <div className="min-w-0 truncate flex items-center gap-2">
-                                <span className="font-semibold text-foreground truncate">
-                                  {col.label}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">
-                                  ({meta.label})
-                                </span>
-                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 capitalize shrink-0 text-muted-foreground">
-                                  Align: {align}
-                                </Badge>
-                              </div>
-                            </div>
-
-                            {/* Right: Reorder Action Buttons */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                title="Move to Top"
-                                disabled={index === 0}
-                                onClick={() => moveColumnToTop(col.id)}
-                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
-                              >
-                                <ChevronsUp className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                title="Move Up"
-                                disabled={index === 0}
-                                onClick={() => moveColumnUp(col.id)}
-                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
-                              >
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                title="Move Down"
-                                disabled={index === selectedColumnIds.length - 1}
-                                onClick={() => moveColumnDown(col.id)}
-                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
-                              >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                title="Move to Bottom"
-                                disabled={index === selectedColumnIds.length - 1}
-                                onClick={() => moveColumnToBottom(col.id)}
-                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 disabled:pointer-events-none transition cursor-pointer"
-                              >
-                                <ChevronsDown className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                title="Remove from export"
-                                onClick={() => toggleColumn(col.id)}
-                                className="p-1 rounded-md text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition cursor-pointer ml-1"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            return (
+                              <SortableColumnRow
+                                key={col.id}
+                                id={col.id}
+                                col={col}
+                                index={index}
+                                total={selectedColumnIds.length}
+                                align={align}
+                                meta={meta}
+                                onMoveTop={moveColumnToTop}
+                                onMoveUp={moveColumnUp}
+                                onMoveDown={moveColumnDown}
+                                onMoveBottom={moveColumnToBottom}
+                                onRemove={toggleColumn}
+                              />
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 )}
               </ScrollArea>
