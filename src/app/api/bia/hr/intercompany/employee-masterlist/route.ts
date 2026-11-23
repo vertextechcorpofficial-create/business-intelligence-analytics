@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 
         const [usersRes, departmentsRes, statusesRes, wagesRes, schedulesRes] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
-            `${companyUrl}/items/user?limit=-1&fields=${userFields}`,
+            `${companyUrl}/items/user?limit=-1&filter[is_employee][_eq]=1&fields=${userFields}`,
             compHeaders,
             6000
           ),
@@ -320,9 +320,11 @@ export async function GET(request: NextRequest) {
       const compDeptsSet = new Set<string>();
 
       users.forEach((u) => {
+        // Strictly exclude users who are not employees
         const isEmployee = parseBit(u.is_employee);
         if (!isEmployee) return;
 
+        // Skip deleted users
         const isDeleted = parseBit(u.is_deleted) || parseBit(u.isDeleted);
         if (isDeleted) return;
 
@@ -334,12 +336,21 @@ export async function GET(request: NextRequest) {
         const middleName = u.user_mname ? String(u.user_mname).trim() : undefined;
         const suffix = u.suffix_name ? String(u.suffix_name).trim() : undefined;
 
-        const nameCombined = `${firstName} ${lastName}`.toLowerCase();
+        // Exclude system accounts, bot accounts, role placeholders, and non-persons
+        const nameCombined = `${firstName} ${lastName}`.toLowerCase().trim();
+        const positionLower = String(u.user_position || "").toLowerCase().trim();
         if (
+          !firstName ||
+          !lastName ||
           nameCombined.includes("dummy") ||
           nameCombined.includes("throwaway") ||
           nameCombined.includes("qa test") ||
-          nameCombined.includes("test account")
+          nameCombined.includes("test account") ||
+          nameCombined.includes("dev vertex") ||
+          nameCombined.includes("system admin") ||
+          nameCombined.includes("system developer") ||
+          nameCombined === positionLower ||
+          (firstName.toLowerCase() === "customer" && lastName.toLowerCase() === "specialist")
         ) {
           return;
         }
