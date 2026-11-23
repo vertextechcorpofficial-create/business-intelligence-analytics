@@ -217,16 +217,16 @@ export function EmployeeMasterlistExportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl sm:max-w-3xl lg:max-w-4xl p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-2xl sm:max-w-3xl lg:max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-card border-border rounded-2xl shadow-2xl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 p-5 sm:p-6 border-b border-border/60">
+        <div className="shrink-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 p-4 sm:p-5 border-b border-border/60">
           <DialogHeader className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="p-2 rounded-xl bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
                 <Download className="h-5 w-5" />
               </span>
               <div>
-                <DialogTitle className="text-lg font-bold text-foreground">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
                   Custom Export Masterlist
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
@@ -238,7 +238,7 @@ export function EmployeeMasterlistExportModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 min-h-0">
           {/* 1. Format & Scope Controls */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Format Selector */}
@@ -455,7 +455,7 @@ export function EmployeeMasterlistExportModal({
               )}
             </div>
 
-            <ScrollArea className="h-72 sm:h-80 pr-3 border border-border/70 rounded-xl bg-muted/10 p-3">
+            <ScrollArea className="h-60 sm:h-72 pr-3 border border-border/70 rounded-xl bg-muted/10 p-3">
               <div className="space-y-4">
                 {(Array.from(groupedColumns.entries()) as [ExportCategory, typeof EXPORT_COLUMNS][]).map(
                   ([category, columns]) => {
@@ -526,20 +526,23 @@ export function EmployeeMasterlistExportModal({
                                   className={`flex items-center rounded-md border p-0.5 shrink-0 transition-opacity ${
                                     checked
                                       ? "border-border/80 bg-background/90 opacity-100"
-                                      : "border-border/40 bg-muted/40 opacity-40 hover:opacity-80"
+                                      : "border-border/40 bg-muted/30 opacity-30 hover:opacity-80"
                                   }`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button
                                     type="button"
-                                    title={`Align ${col.label} Left`}
+                                    title={checked ? `Align ${col.label} Left` : `Select ${col.label} to align left`}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      if (!checked) toggleColumn(col.id);
                                       setColumnAlignment(col.id, "left");
                                     }}
                                     className={`p-1 rounded transition-colors cursor-pointer ${
-                                      currentAlign === "left"
+                                      currentAlign === "left" && checked
                                         ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : currentAlign === "left" && !checked
+                                        ? "bg-muted text-muted-foreground font-medium"
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
                                   >
@@ -547,14 +550,17 @@ export function EmployeeMasterlistExportModal({
                                   </button>
                                   <button
                                     type="button"
-                                    title={`Align ${col.label} Center`}
+                                    title={checked ? `Align ${col.label} Center` : `Select ${col.label} to align center`}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      if (!checked) toggleColumn(col.id);
                                       setColumnAlignment(col.id, "center");
                                     }}
                                     className={`p-1 rounded transition-colors cursor-pointer ${
-                                      currentAlign === "center"
+                                      currentAlign === "center" && checked
                                         ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : currentAlign === "center" && !checked
+                                        ? "bg-muted text-muted-foreground font-medium"
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
                                   >
@@ -562,14 +568,17 @@ export function EmployeeMasterlistExportModal({
                                   </button>
                                   <button
                                     type="button"
-                                    title={`Align ${col.label} Right`}
+                                    title={checked ? `Align ${col.label} Right` : `Select ${col.label} to align right`}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      if (!checked) toggleColumn(col.id);
                                       setColumnAlignment(col.id, "right");
                                     }}
                                     className={`p-1 rounded transition-colors cursor-pointer ${
-                                      currentAlign === "right"
+                                      currentAlign === "right" && checked
                                         ? "bg-cyan-600 text-white dark:bg-cyan-500 shadow-2xs font-bold"
+                                        : currentAlign === "right" && !checked
+                                        ? "bg-muted text-muted-foreground font-medium"
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                     }`}
                                   >
@@ -590,7 +599,7 @@ export function EmployeeMasterlistExportModal({
         </div>
 
         {/* Footer Actions */}
-        <DialogFooter className="p-4 sm:p-5 border-t border-border/60 bg-muted/20 flex items-center justify-between sm:justify-between w-full">
+        <DialogFooter className="shrink-0 p-3 sm:p-4 border-t border-border/60 bg-muted/20 flex items-center justify-between sm:justify-between w-full">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               Target: <strong className="text-foreground">{targetRecords.length}</strong> employees
