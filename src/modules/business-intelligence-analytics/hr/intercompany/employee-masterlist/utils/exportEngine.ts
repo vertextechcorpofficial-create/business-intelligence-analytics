@@ -646,7 +646,9 @@ export function exportToExcel(
 ) {
   if (!records || records.length === 0) return;
 
-  const cols = EXPORT_COLUMNS.filter((c) => selectedColumnIds.includes(c.id));
+  const cols = selectedColumnIds
+    .map((id) => EXPORT_COLUMNS.find((c) => c.id === id))
+    .filter((c): c is ExportColumnDefinition => !!c);
   if (cols.length === 0) return;
 
   const filename =
@@ -710,7 +712,9 @@ export function exportToPdf(
 ) {
   if (!records || records.length === 0) return;
 
-  const cols = EXPORT_COLUMNS.filter((c) => selectedColumnIds.includes(c.id));
+  const cols = selectedColumnIds
+    .map((id) => EXPORT_COLUMNS.find((c) => c.id === id))
+    .filter((c): c is ExportColumnDefinition => !!c);
   if (cols.length === 0) return;
 
   const orientation =
@@ -837,7 +841,9 @@ export function exportToCsvCustom(
       ? optionsOrFilename
       : optionsOrFilename?.filename || "intercompany_employee_masterlist.csv";
 
-  const cols = EXPORT_COLUMNS.filter((c) => selectedColumnIds.includes(c.id));
+  const cols = selectedColumnIds
+    .map((id) => EXPORT_COLUMNS.find((c) => c.id === id))
+    .filter((c): c is ExportColumnDefinition => !!c);
   if (cols.length === 0) return;
 
   const headers = cols.map((c) => c.label);
