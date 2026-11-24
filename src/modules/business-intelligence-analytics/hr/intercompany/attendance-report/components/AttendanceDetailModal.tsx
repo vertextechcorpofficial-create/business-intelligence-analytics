@@ -178,6 +178,12 @@ export function AttendanceDetailModal({
                 </p>
               </div>
             </div>
+            {record.isFlexible && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-xs font-medium">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>Flexible Work Schedule — Exempt from tardiness / late calculations</span>
+              </div>
+            )}
           </div>
 
           {/* Time In / Out Image Proofs if available */}

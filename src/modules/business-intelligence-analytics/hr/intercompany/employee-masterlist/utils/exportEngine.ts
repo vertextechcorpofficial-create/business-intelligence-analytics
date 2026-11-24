@@ -9,7 +9,8 @@ export type ExportCategory =
   | "employment"
   | "personal"
   | "government"
-  | "wage";
+  | "wage"
+  | "schedule";
 
 export type ColumnAlignment = "left" | "center" | "right";
 
@@ -549,6 +550,68 @@ export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
         ? `Step ${r.wage.salaryStep}`
         : "N/A",
   },
+
+  // 7. Work Schedule & Flexible Time (user_schedule)
+  {
+    id: "isFlexible",
+    label: "Flexible Time Schedule",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "center",
+    formatValue: (r) =>
+      r.schedule ? (r.schedule.isFlexible ? "Flexible (Yes)" : "Standard Shift (No)") : "Standard Shift (No)",
+  },
+  {
+    id: "workShift",
+    label: "Scheduled Shift Hours",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "center",
+    formatValue: (r) =>
+      r.schedule?.workStart && r.schedule?.workEnd
+        ? `${r.schedule.workStart} - ${r.schedule.workEnd}`
+        : "08:00 - 17:00",
+  },
+  {
+    id: "gracePeriod",
+    label: "Grace Period",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "right",
+    formatValue: (r) =>
+      r.schedule?.gracePeriod !== undefined ? `${r.schedule.gracePeriod} mins` : "5 mins",
+  },
+  {
+    id: "weeklyWorkingDays",
+    label: "Weekly Working Days",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "right",
+    formatValue: (r) =>
+      r.schedule?.workingDays !== undefined ? `${r.schedule.workingDays} days` : "N/A",
+  },
+  {
+    id: "restDay",
+    label: "Rest Day",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "center",
+    formatValue: (r) => r.schedule?.restDay || "Sunday",
+  },
+  {
+    id: "workdaysNote",
+    label: "Work Schedule Note",
+    category: "schedule",
+    categoryLabel: "Work Schedule",
+    defaultSelected: false,
+    defaultAlignment: "left",
+    formatValue: (r) => r.schedule?.workdaysNote || "N/A",
+  },
 ];
 
 export const EXPORT_PRESETS: {
@@ -627,6 +690,25 @@ export const EXPORT_PRESETS: {
       "philhealthNumber",
       "pagibigNumber",
       "tinNumber",
+    ],
+  },
+  {
+    id: "schedule_roster",
+    name: "Work Schedule & Shift Roster",
+    description: "Shift hours, flexible schedule status, grace periods, and working days",
+    columnIds: [
+      "employeeId",
+      "biometricId",
+      "name",
+      "companyCode",
+      "department",
+      "position",
+      "isFlexible",
+      "workShift",
+      "gracePeriod",
+      "weeklyWorkingDays",
+      "restDay",
+      "workdaysNote",
     ],
   },
 ];

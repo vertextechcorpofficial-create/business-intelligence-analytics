@@ -57,6 +57,7 @@ import {
   RotateCcw,
   X,
   GripVertical,
+  Clock,
 } from "lucide-react";
 import { IntercompanyEmployeeMasterlistRecord } from "../types";
 import {
@@ -112,6 +113,11 @@ const CATEGORY_META: Record<
     label: "User Wage Management (user_wage_management)",
     icon: Coins,
     color: "text-rose-500",
+  },
+  schedule: {
+    label: "Work Schedule & Flexible Time (user_schedule)",
+    icon: Clock,
+    color: "text-amber-500",
   },
 };
 

@@ -81,7 +81,12 @@ export function PunctualityDirectoryTable({
     );
   };
 
-  const renderStatusBadge = (status: PunctualityStatus, delay: number, hasFiledLeave?: boolean) => {
+  const renderStatusBadge = (
+    status: PunctualityStatus,
+    delay: number,
+    hasFiledLeave?: boolean,
+    isFlexible?: boolean
+  ) => {
     let badgeClass = "";
     let icon = null;
 
@@ -131,6 +136,11 @@ export function PunctualityDirectoryTable({
           {icon}
           <span>{status}</span>
         </span>
+        {isFlexible && status === "On Time" && (
+          <span className="text-[9.5px] font-semibold text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.2 rounded text-center">
+            Flexible Schedule
+          </span>
+        )}
         {hasFiledLeave && status !== "On Leave" && (
           <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
             Filed Leave
@@ -365,7 +375,7 @@ export function PunctualityDirectoryTable({
 
                   {/* Punctuality Status */}
                   <TableCell>
-                    {renderStatusBadge(r.punctualityStatus, r.delayMinutes, r.hasFiledLeave)}
+                    {renderStatusBadge(r.punctualityStatus, r.delayMinutes, r.hasFiledLeave, r.isFlexible)}
                   </TableCell>
 
                   {/* Delay Minutes */}

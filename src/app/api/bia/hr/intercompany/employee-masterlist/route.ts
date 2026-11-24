@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
           compHeaders["Authorization"] = `Bearer ${companyToken}`;
         }
 
-        const [usersRes, departmentsRes, statusesRes, wagesRes, schedulesRes] = await Promise.all([
+        const [usersRes, departmentsRes, statusesRes, wagesRes, schedulesRes, userSchedulesRes] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
             `${companyUrl}/items/user?limit=-1&filter[is_employee][_eq]=1&fields=${userFields}`,
             compHeaders,
@@ -161,6 +161,11 @@ export async function GET(request: NextRequest) {
             compHeaders,
             4000
           ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_schedule?limit=-1&fields=id,user_id,working_days,rest_day,work_start,work_end,lunch_start,lunch_end,break_start,break_end,workdays_note,grace_period,is_flexible`,
+            compHeaders,
+            4500
+          ),
         ]);
 
         return {
@@ -172,6 +177,7 @@ export async function GET(request: NextRequest) {
           statuses: statusesRes.data,
           wages: wagesRes.data,
           schedules: schedulesRes.data,
+          userSchedules: userSchedulesRes.data,
           isOnline: usersRes.ok,
         };
       })
@@ -226,6 +232,7 @@ export async function GET(request: NextRequest) {
         statuses,
         wages = [],
         schedules = [],
+        userSchedules = [],
         isOnline,
       } = res.value;
 
@@ -305,6 +312,15 @@ export async function GET(request: NextRequest) {
         const uId = Number(w.user_id);
         if (uId) {
           wageMap.set(uId, w);
+        }
+      });
+
+      // Map user schedules & flexible time by user_id
+      const userScheduleMap = new Map<number, AnyRec>();
+      userSchedules.forEach((us) => {
+        const uId = Number(us.user_id);
+        if (uId) {
+          userScheduleMap.set(uId, us);
         }
       });
 
@@ -528,6 +544,33 @@ export async function GET(request: NextRequest) {
           };
         }
 
+        // Schedule & Flexible Work Hours from user_schedule table
+        const schedRaw = userScheduleMap.get(userId);
+        let schedule: IntercompanyEmployeeMasterlistRecord["schedule"] = null;
+        if (schedRaw) {
+          schedule = {
+            id: Number(schedRaw.id),
+            userId,
+            workingDays:
+              schedRaw.working_days !== undefined && schedRaw.working_days !== null
+                ? Number(schedRaw.working_days)
+                : undefined,
+            restDay: schedRaw.rest_day ? String(schedRaw.rest_day) : null,
+            workStart: schedRaw.work_start ? String(schedRaw.work_start) : null,
+            workEnd: schedRaw.work_end ? String(schedRaw.work_end) : null,
+            lunchStart: schedRaw.lunch_start ? String(schedRaw.lunch_start) : null,
+            lunchEnd: schedRaw.lunch_end ? String(schedRaw.lunch_end) : null,
+            breakStart: schedRaw.break_start ? String(schedRaw.break_start) : null,
+            breakEnd: schedRaw.break_end ? String(schedRaw.break_end) : null,
+            workdaysNote: schedRaw.workdays_note ? String(schedRaw.workdays_note) : null,
+            gracePeriod:
+              schedRaw.grace_period !== undefined && schedRaw.grace_period !== null
+                ? Number(schedRaw.grace_period)
+                : undefined,
+            isFlexible: parseBit(schedRaw.is_flexible),
+          };
+        }
+
         allRecords.push({
           id: `${companyId}-${userId}`,
           userId,
@@ -574,6 +617,7 @@ export async function GET(request: NextRequest) {
           emergencyContactName,
           emergencyContactNumber,
           wage,
+          schedule,
         });
       });
 

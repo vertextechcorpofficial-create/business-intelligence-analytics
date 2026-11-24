@@ -30,6 +30,9 @@ export interface IntercompanyEmployeeRecord {
   leaveType?: string | null;
   leaveReason?: string | null;
   leaveDates?: string | null;
+  isFlexible?: boolean;
+  scheduleWorkStart?: string | null;
+  scheduleWorkEnd?: string | null;
 }
 
 export interface CompanyAttendanceSummary {

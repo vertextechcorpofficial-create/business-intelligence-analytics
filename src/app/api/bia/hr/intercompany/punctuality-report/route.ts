@@ -269,7 +269,7 @@ export async function GET(request: NextRequest) {
 
         const leaveFilter = `filter[status][_neq]=rejected&filter[leave_start][_lte]=${endDate}&filter[leave_end][_gte]=${startDate}`;
 
-        const [usersRaw, departmentsRaw, statusesRaw, logsRaw, leavesRaw] = await Promise.all([
+        const [usersRaw, departmentsRaw, statusesRaw, logsRaw, leavesRaw, userSchedulesRaw] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
             `${companyUrl}/items/user?limit=-1&fields=${userFields}`,
             compHeaders,
@@ -295,6 +295,11 @@ export async function GET(request: NextRequest) {
             compHeaders,
             5000
           ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_schedule?limit=-1&fields=id,user_id,work_start,work_end,grace_period,is_flexible,working_days,rest_day`,
+            compHeaders,
+            4500
+          ),
         ]);
 
         return {
@@ -306,6 +311,7 @@ export async function GET(request: NextRequest) {
           employmentStatuses: statusesRaw,
           logs: logsRaw,
           leaves: leavesRaw,
+          userSchedules: userSchedulesRaw,
         };
       })
     );
@@ -373,10 +379,48 @@ export async function GET(request: NextRequest) {
         employmentStatuses,
         logs,
         leaves,
+        userSchedules,
       } = result.value;
 
       activeCompaniesCount++;
       companiesList.push({ companyId, companyName, companyCode });
+
+      // User Schedule Map (Individual Schedule & Flexible Work Time)
+      const userSchedMap = new Map<
+        number,
+        {
+          isFlexible: boolean;
+          workStartHour: number;
+          workStartMinute: number;
+          gracePeriod: number;
+          workStartStr: string | null;
+        }
+      >();
+      (userSchedules || []).forEach((us) => {
+        const uId = Number(us.user_id);
+        if (uId) {
+          const isFlex = parseBit(us.is_flexible);
+          let startH = 8;
+          let startM = 0;
+          if (us.work_start) {
+            const parts = String(us.work_start).split(":");
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (!isNaN(h) && !isNaN(m)) {
+              startH = h;
+              startM = m;
+            }
+          }
+          const grace = Number(us.grace_period) || 5;
+          userSchedMap.set(uId, {
+            isFlexible: isFlex,
+            workStartHour: startH,
+            workStartMinute: startM,
+            gracePeriod: grace,
+            workStartStr: us.work_start ? String(us.work_start) : null,
+          });
+        }
+      });
 
       // Department Map
       const deptMap = new Map<number, string>();
@@ -496,15 +540,18 @@ export async function GET(request: NextRequest) {
             const rawStatus = String(log.status || "").toLowerCase();
 
             arrivalMinutes = parseTimeToMinutes(log.time_in);
-            delayMinutes = calculateDelayMinutes(log.time_in as string | null);
-            earlyMinutes = calculateEarlyMinutes(log.time_in as string | null);
+            const userSched = userSchedMap.get(userId);
+            const isFlexible = userSched?.isFlexible ?? false;
 
             // Undertime detection
             if (rawStatus.includes("undertime")) {
               undertimeMinutes = 30; // default indicator
             }
 
-            if (delayMinutes === 0) {
+            // If the user is flexible, there is strictly NO count for late
+            if (isFlexible) {
+              delayMinutes = 0;
+              earlyMinutes = 0;
               if (undertimeMinutes > 0) {
                 puncStatus = "Undertime";
                 compUndertime++;
@@ -514,30 +561,47 @@ export async function GET(request: NextRequest) {
                 compOnTime++;
                 grandOnTime++;
               }
-            } else if (delayMinutes <= 15) {
-              puncStatus = "Grace Period";
-              compGrace++;
-              compLate++;
-              grandGracePeriod++;
-              grandTotalLate++;
-              compDelayMinutes += delayMinutes;
-              grandTotalDelayMinutes += delayMinutes;
-            } else if (delayMinutes <= 30) {
-              puncStatus = "Moderate Late";
-              compModerate++;
-              compLate++;
-              grandModerateLate++;
-              grandTotalLate++;
-              compDelayMinutes += delayMinutes;
-              grandTotalDelayMinutes += delayMinutes;
             } else {
-              puncStatus = "Severe Late";
-              compSevere++;
-              compLate++;
-              grandSevereLate++;
-              grandTotalLate++;
-              compDelayMinutes += delayMinutes;
-              grandTotalDelayMinutes += delayMinutes;
+              const schedH = userSched?.workStartStr ? userSched.workStartHour : 8;
+              const schedM = userSched?.workStartStr ? userSched.workStartMinute : 0;
+              delayMinutes = calculateDelayMinutes(log.time_in as string | null, schedH, schedM);
+              earlyMinutes = calculateEarlyMinutes(log.time_in as string | null, schedH, schedM);
+
+              if (delayMinutes === 0) {
+                if (undertimeMinutes > 0) {
+                  puncStatus = "Undertime";
+                  compUndertime++;
+                  grandUndertime++;
+                } else {
+                  puncStatus = "On Time";
+                  compOnTime++;
+                  grandOnTime++;
+                }
+              } else if (delayMinutes <= 15) {
+                puncStatus = "Grace Period";
+                compGrace++;
+                compLate++;
+                grandGracePeriod++;
+                grandTotalLate++;
+                compDelayMinutes += delayMinutes;
+                grandTotalDelayMinutes += delayMinutes;
+              } else if (delayMinutes <= 30) {
+                puncStatus = "Moderate Late";
+                compModerate++;
+                compLate++;
+                grandModerateLate++;
+                grandTotalLate++;
+                compDelayMinutes += delayMinutes;
+                grandTotalDelayMinutes += delayMinutes;
+              } else {
+                puncStatus = "Severe Late";
+                compSevere++;
+                compLate++;
+                grandSevereLate++;
+                grandTotalLate++;
+                compDelayMinutes += delayMinutes;
+                grandTotalDelayMinutes += delayMinutes;
+              }
             }
 
             // Department aggregations
@@ -630,7 +694,7 @@ export async function GET(request: NextRequest) {
             gender,
             avatar,
             punctualityStatus: puncStatus,
-            scheduledTimeIn: "08:00 AM",
+            scheduledTimeIn: userSchedMap.get(userId)?.isFlexible ? "Flexible Schedule" : "08:00 AM",
             timeIn: timeInFormatted,
             timeOut: timeOutFormatted,
             rawTimeIn: (log?.time_in as string) || null,
@@ -654,6 +718,7 @@ export async function GET(request: NextRequest) {
             leaveDates: activeLeave
               ? `${String(activeLeave.leave_start).slice(0, 10)} → ${String(activeLeave.leave_end).slice(0, 10)}`
               : null,
+            isFlexible: userSchedMap.get(userId)?.isFlexible ?? false,
           });
         });
       });
