@@ -44,6 +44,7 @@ export interface IntercompanyPunctualityRecord {
   leaveType?: string | null;
   leaveReason?: string | null;
   leaveDates?: string | null;
+  isFlexible?: boolean;
 }
 
 export interface CompanyPunctualitySummary {

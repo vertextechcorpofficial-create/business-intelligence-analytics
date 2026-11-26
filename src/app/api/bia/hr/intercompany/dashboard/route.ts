@@ -339,6 +339,7 @@ export async function GET(request: NextRequest) {
           evalsRes,
           otRes,
           attRes,
+          userSchedRes,
         ] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(conUrl, compHeaders, 2500),
           fetchDirectusWithTimeout<AnyRec>(resigUrl, compHeaders, 2500),
@@ -352,6 +353,11 @@ export async function GET(request: NextRequest) {
           fetchDirectusWithTimeout<AnyRec>(evalUrl, compHeaders, 2500),
           fetchDirectusWithTimeout<AnyRec>(otUrl, compHeaders, 2500),
           fetchDirectusWithTimeout<AnyRec>(attUrl, compHeaders, 2500),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_schedule?limit=-1&fields=id,user_id,is_flexible`,
+            compHeaders,
+            2500
+          ),
         ]);
 
         return {
@@ -368,6 +374,7 @@ export async function GET(request: NextRequest) {
           evaluations: evalsRes.data,
           overtimes: otRes.data,
           attendanceLogs: attRes.data,
+          userSchedules: userSchedRes.data,
         };
       })
     );
@@ -473,13 +480,27 @@ export async function GET(request: NextRequest) {
           else casualContractualCountAll++;
         });
 
+        // Flexible schedule user set
+        const flexibleUserIds = new Set<number>();
+        (val.userSchedules || []).forEach((us) => {
+          if (parseBit(us.is_flexible)) {
+            flexibleUserIds.add(Number(us.user_id));
+          }
+        });
+
         // Attendance & Punctuality from filtered logs
         let compOnTime = 0;
         let compLate = 0;
         val.attendanceLogs.forEach((l) => {
+          const uid = Number(l.user_id);
+          const isFlexible = flexibleUserIds.has(uid);
           const s = String(l.status || "").toLowerCase();
-          if (s.includes("late")) compLate++;
-          else compOnTime++;
+          // If the user has flexible time, there is strictly NO count for late
+          if (!isFlexible && s.includes("late")) {
+            compLate++;
+          } else {
+            compOnTime++;
+          }
         });
 
         const compLogsCount = val.attendanceLogs.length;

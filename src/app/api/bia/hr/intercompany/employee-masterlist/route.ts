@@ -117,9 +117,9 @@ export async function GET(request: NextRequest) {
     });
 
     const userFields =
-      "user_id,user_fname,user_lname,user_mname,suffix_name,user_department,user_position,user_email,personal_email,user_contact,user_image,is_employee,separation_date,separation_cause,gender,civil_status,user_bday,user_dateOfHire,user_city,user_province,user_brgy,is_deleted,isDeleted,is_department_head,employment_status_id,rf_id,biometric_id";
+      "user_id,user_fname,user_lname,user_mname,suffix_name,user_department,user_position,user_email,personal_email,user_contact,user_image,is_employee,separation_date,separation_cause,gender,civil_status,user_bday,user_dateOfHire,user_city,user_province,user_brgy,is_deleted,isDeleted,is_department_head,employment_status_id,rf_id,biometric_id,user_sss,user_philhealth,user_pagibig,user_tin,blood_type,citizenship,emergency_contact_name,emergency_contact_number";
 
-    // 2. Concurrently query each company's employees, departments, and employment statuses
+    // 2. Concurrently query each company's employees, departments, employment statuses, and wage management
     const companyFetchResults = await Promise.allSettled(
       validCompanies.map(async (company) => {
         const companyId = Number(company.company_id);
@@ -135,9 +135,9 @@ export async function GET(request: NextRequest) {
           compHeaders["Authorization"] = `Bearer ${companyToken}`;
         }
 
-        const [usersRes, departmentsRes, statusesRes] = await Promise.all([
+        const [usersRes, departmentsRes, statusesRes, wagesRes, schedulesRes, userSchedulesRes] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
-            `${companyUrl}/items/user?limit=-1&fields=${userFields}`,
+            `${companyUrl}/items/user?limit=-1&filter[is_employee][_eq]=1&fields=${userFields}`,
             compHeaders,
             6000
           ),
@@ -151,6 +151,21 @@ export async function GET(request: NextRequest) {
             compHeaders,
             4000
           ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_wage_management?limit=-1&fields=id,user_id,daily_wage,monthly_rate,cutoff_wage_date_update,philhealth_contribution_monthly,sss_contribution_monthly,pagibig_contribution_monthly,isCard,vacation_leave_per_year,sick_leave_per_year,paid_holiday,working_days_per_month,schedule_id,isRegularEmployee`,
+            compHeaders,
+            5000
+          ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/salary_schedules?limit=-1&fields=schedule_id,salary_grade,step,monthly_rate`,
+            compHeaders,
+            4000
+          ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_schedule?limit=-1&fields=id,user_id,working_days,rest_day,work_start,work_end,lunch_start,lunch_end,break_start,break_end,workdays_note,grace_period,is_flexible`,
+            compHeaders,
+            4500
+          ),
         ]);
 
         return {
@@ -160,6 +175,9 @@ export async function GET(request: NextRequest) {
           users: usersRes.data,
           departments: departmentsRes.data,
           statuses: statusesRes.data,
+          wages: wagesRes.data,
+          schedules: schedulesRes.data,
+          userSchedules: userSchedulesRes.data,
           isOnline: usersRes.ok,
         };
       })
@@ -212,6 +230,9 @@ export async function GET(request: NextRequest) {
         users,
         departments,
         statuses,
+        wages = [],
+        schedules = [],
+        userSchedules = [],
         isOnline,
       } = res.value;
 
@@ -273,6 +294,36 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      // Map salary schedules (salary_grade, step)
+      const scheduleMap = new Map<number, { salaryGrade: number | null; salaryStep: number | null }>();
+      schedules.forEach((sc) => {
+        const sId = Number(sc.schedule_id);
+        if (sId) {
+          scheduleMap.set(sId, {
+            salaryGrade: sc.salary_grade ? Number(sc.salary_grade) : null,
+            salaryStep: sc.step ? Number(sc.step) : null,
+          });
+        }
+      });
+
+      // Map wage management records by user_id
+      const wageMap = new Map<number, AnyRec>();
+      wages.forEach((w) => {
+        const uId = Number(w.user_id);
+        if (uId) {
+          wageMap.set(uId, w);
+        }
+      });
+
+      // Map user schedules & flexible time by user_id
+      const userScheduleMap = new Map<number, AnyRec>();
+      userSchedules.forEach((us) => {
+        const uId = Number(us.user_id);
+        if (uId) {
+          userScheduleMap.set(uId, us);
+        }
+      });
+
       let compActive = 0;
       let compSeparated = 0;
       let compRegular = 0;
@@ -285,9 +336,11 @@ export async function GET(request: NextRequest) {
       const compDeptsSet = new Set<string>();
 
       users.forEach((u) => {
+        // Strictly exclude users who are not employees
         const isEmployee = parseBit(u.is_employee);
         if (!isEmployee) return;
 
+        // Skip deleted users
         const isDeleted = parseBit(u.is_deleted) || parseBit(u.isDeleted);
         if (isDeleted) return;
 
@@ -299,12 +352,21 @@ export async function GET(request: NextRequest) {
         const middleName = u.user_mname ? String(u.user_mname).trim() : undefined;
         const suffix = u.suffix_name ? String(u.suffix_name).trim() : undefined;
 
-        const nameCombined = `${firstName} ${lastName}`.toLowerCase();
+        // Exclude system accounts, bot accounts, role placeholders, and non-persons
+        const nameCombined = `${firstName} ${lastName}`.toLowerCase().trim();
+        const positionLower = String(u.user_position || "").toLowerCase().trim();
         if (
+          !firstName ||
+          !lastName ||
           nameCombined.includes("dummy") ||
           nameCombined.includes("throwaway") ||
           nameCombined.includes("qa test") ||
-          nameCombined.includes("test account")
+          nameCombined.includes("test account") ||
+          nameCombined.includes("dev vertex") ||
+          nameCombined.includes("system admin") ||
+          nameCombined.includes("system developer") ||
+          nameCombined === positionLower ||
+          (firstName.toLowerCase() === "customer" && lastName.toLowerCase() === "specialist")
         ) {
           return;
         }
@@ -435,6 +497,80 @@ export async function GET(request: NextRequest) {
           grandSeparatedEmployees++;
         }
 
+        // Government IDs & Additional Profile Information from user table
+        const sssNumber = u.user_sss ? String(u.user_sss).trim() : null;
+        const philhealthNumber = u.user_philhealth ? String(u.user_philhealth).trim() : null;
+        const pagibigNumber = u.user_pagibig ? String(u.user_pagibig).trim() : null;
+        const tinNumber = u.user_tin ? String(u.user_tin).trim() : null;
+        const bloodType = u.blood_type ? String(u.blood_type).trim() : null;
+        const citizenship = u.citizenship ? String(u.citizenship).trim() : null;
+        const emergencyContactName = u.emergency_contact_name ? String(u.emergency_contact_name).trim() : null;
+        const emergencyContactNumber = u.emergency_contact_number ? String(u.emergency_contact_number).trim() : null;
+
+        // Wage Management from user_wage_management table
+        const wageRaw = wageMap.get(userId);
+        let wage: IntercompanyEmployeeMasterlistRecord["wage"] = null;
+        if (wageRaw) {
+          const sId = wageRaw.schedule_id ? Number(wageRaw.schedule_id) : null;
+          const sched = sId ? scheduleMap.get(sId) : null;
+          wage = {
+            id: Number(wageRaw.id),
+            userId,
+            dailyWage: parseFloat(String(wageRaw.daily_wage || 0)),
+            monthlyRate: parseFloat(String(wageRaw.monthly_rate || 0)),
+            cutoffWageDateUpdate: wageRaw.cutoff_wage_date_update
+              ? String(wageRaw.cutoff_wage_date_update).slice(0, 10)
+              : null,
+            philhealthContributionMonthly: parseFloat(
+              String(wageRaw.philhealth_contribution_monthly || 0)
+            ),
+            sssContributionMonthly: parseFloat(
+              String(wageRaw.sss_contribution_monthly || 0)
+            ),
+            pagibigContributionMonthly: parseFloat(
+              String(wageRaw.pagibig_contribution_monthly || 0)
+            ),
+            isCard: parseBit(wageRaw.isCard),
+            vacationLeavePerYear: Number(wageRaw.vacation_leave_per_year || 0),
+            sickLeavePerYear: Number(wageRaw.sick_leave_per_year || 0),
+            paidHoliday: parseBit(wageRaw.paid_holiday),
+            workingDaysPerMonth: parseFloat(
+              String(wageRaw.working_days_per_month || 26)
+            ),
+            scheduleId: sId,
+            salaryGrade: sched?.salaryGrade ?? null,
+            salaryStep: sched?.salaryStep ?? null,
+            isRegularEmployee: parseBit(wageRaw.isRegularEmployee),
+          };
+        }
+
+        // Schedule & Flexible Work Hours from user_schedule table
+        const schedRaw = userScheduleMap.get(userId);
+        let schedule: IntercompanyEmployeeMasterlistRecord["schedule"] = null;
+        if (schedRaw) {
+          schedule = {
+            id: Number(schedRaw.id),
+            userId,
+            workingDays:
+              schedRaw.working_days !== undefined && schedRaw.working_days !== null
+                ? Number(schedRaw.working_days)
+                : undefined,
+            restDay: schedRaw.rest_day ? String(schedRaw.rest_day) : null,
+            workStart: schedRaw.work_start ? String(schedRaw.work_start) : null,
+            workEnd: schedRaw.work_end ? String(schedRaw.work_end) : null,
+            lunchStart: schedRaw.lunch_start ? String(schedRaw.lunch_start) : null,
+            lunchEnd: schedRaw.lunch_end ? String(schedRaw.lunch_end) : null,
+            breakStart: schedRaw.break_start ? String(schedRaw.break_start) : null,
+            breakEnd: schedRaw.break_end ? String(schedRaw.break_end) : null,
+            workdaysNote: schedRaw.workdays_note ? String(schedRaw.workdays_note) : null,
+            gracePeriod:
+              schedRaw.grace_period !== undefined && schedRaw.grace_period !== null
+                ? Number(schedRaw.grace_period)
+                : undefined,
+            isFlexible: parseBit(schedRaw.is_flexible),
+          };
+        }
+
         allRecords.push({
           id: `${companyId}-${userId}`,
           userId,
@@ -472,6 +608,16 @@ export async function GET(request: NextRequest) {
           barangay,
           avatar,
           isDepartmentHead,
+          sssNumber,
+          philhealthNumber,
+          pagibigNumber,
+          tinNumber,
+          bloodType,
+          citizenship,
+          emergencyContactName,
+          emergencyContactNumber,
+          wage,
+          schedule,
         });
       });
 

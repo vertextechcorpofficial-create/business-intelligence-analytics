@@ -1,5 +1,41 @@
 export type RosterStatus = "Active" | "Separated";
 
+export interface UserWageManagement {
+  id: number;
+  userId: number;
+  dailyWage: number;
+  monthlyRate: number;
+  cutoffWageDateUpdate: string | null;
+  philhealthContributionMonthly: number;
+  sssContributionMonthly: number;
+  pagibigContributionMonthly: number;
+  isCard: boolean;
+  vacationLeavePerYear: number;
+  sickLeavePerYear: number;
+  paidHoliday: boolean;
+  workingDaysPerMonth: number;
+  scheduleId: number | null;
+  salaryGrade?: number | null;
+  salaryStep?: number | null;
+  isRegularEmployee: boolean;
+}
+
+export interface UserScheduleInfo {
+  id?: number;
+  userId: number;
+  workingDays?: number;
+  restDay?: string | null;
+  workStart?: string | null;
+  workEnd?: string | null;
+  lunchStart?: string | null;
+  lunchEnd?: string | null;
+  breakStart?: string | null;
+  breakEnd?: string | null;
+  workdaysNote?: string | null;
+  gracePeriod?: number;
+  isFlexible: boolean;
+}
+
 export interface IntercompanyEmployeeMasterlistRecord {
   id: string; // `${companyId}-${userId}`
   userId: number;
@@ -37,6 +73,22 @@ export interface IntercompanyEmployeeMasterlistRecord {
   barangay: string;
   avatar: string | null;
   isDepartmentHead: boolean;
+
+  // Government IDs & Extended Profile (from user table)
+  sssNumber?: string | null;
+  philhealthNumber?: string | null;
+  pagibigNumber?: string | null;
+  tinNumber?: string | null;
+  bloodType?: string | null;
+  citizenship?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactNumber?: string | null;
+
+  // Wage & Compensation Management (from user_wage_management table)
+  wage?: UserWageManagement | null;
+
+  // Work Schedule & Flexible Time (from user_schedule table)
+  schedule?: UserScheduleInfo | null;
 }
 
 export interface CompanyMasterlistSummary {

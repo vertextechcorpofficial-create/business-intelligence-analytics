@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
 
         const leaveFilter = `filter[status][_neq]=rejected&filter[leave_start][_lte]=${endDate}&filter[leave_end][_gte]=${startDate}`;
 
-        const [usersRaw, departmentsRaw, statusesRaw, logsRaw, leavesRaw, deptSchedulesRaw] = await Promise.all([
+        const [usersRaw, departmentsRaw, statusesRaw, logsRaw, leavesRaw, deptSchedulesRaw, userSchedulesRaw] = await Promise.all([
           fetchDirectusWithTimeout<AnyRec>(
             `${companyUrl}/items/user?limit=-1&fields=${userFields}`,
             compHeaders,
@@ -288,6 +288,11 @@ export async function GET(request: NextRequest) {
             compHeaders,
             4000
           ),
+          fetchDirectusWithTimeout<AnyRec>(
+            `${companyUrl}/items/user_schedule?limit=-1&fields=id,user_id,work_start,work_end,grace_period,is_flexible,working_days,rest_day`,
+            compHeaders,
+            4500
+          ),
         ]);
 
         return {
@@ -300,6 +305,7 @@ export async function GET(request: NextRequest) {
           attendanceLogs: logsRaw,
           leaves: leavesRaw,
           departmentSchedules: deptSchedulesRaw,
+          userSchedules: userSchedulesRaw,
           isOnline: true,
         };
       })
@@ -359,9 +365,49 @@ export async function GET(request: NextRequest) {
         attendanceLogs,
         leaves,
         departmentSchedules,
+        userSchedules,
       } = res.value;
 
       activeCompaniesCount++;
+
+      // User Schedule Map (Individual Schedule & Flexible Work Time)
+      const userSchedMap = new Map<
+        number,
+        {
+          isFlexible: boolean;
+          workStartHour: number;
+          workStartMinute: number;
+          gracePeriod: number;
+          workStartStr: string | null;
+          workEndStr: string | null;
+        }
+      >();
+      (userSchedules || []).forEach((us) => {
+        const uId = Number(us.user_id);
+        if (uId) {
+          const isFlex = parseBit(us.is_flexible);
+          let startH = 8;
+          let startM = 0;
+          if (us.work_start) {
+            const parts = String(us.work_start).split(":");
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (!isNaN(h) && !isNaN(m)) {
+              startH = h;
+              startM = m;
+            }
+          }
+          const grace = Number(us.grace_period) || 5;
+          userSchedMap.set(uId, {
+            isFlexible: isFlex,
+            workStartHour: startH,
+            workStartMinute: startM,
+            gracePeriod: grace,
+            workStartStr: us.work_start ? String(us.work_start) : null,
+            workEndStr: us.work_end ? String(us.work_end) : null,
+          });
+        }
+      });
 
       // Department Schedule Map
       const deptSchedMap = new Map<
@@ -532,12 +578,18 @@ export async function GET(request: NextRequest) {
 
           if (attLog) {
             const rawStatus = String(attLog.status || "").toLowerCase();
-            const sched = deptId ? deptSchedMap.get(deptId) : undefined;
-            const schedH = sched ? sched.workStartHour : 8;
-            const schedM = sched ? sched.workStartMinute : 0;
-            const grace = sched ? sched.gracePeriod : 0;
+            const userSched = userSchedMap.get(userId);
+            const isFlexible = userSched?.isFlexible ?? false;
 
-            const isLate = checkIfLate(rawStatus, attLog.time_in, schedH, schedM, grace);
+            let isLate = false;
+            // If the user has flexible time, there is strictly NO count for late
+            if (!isFlexible) {
+              const deptSched = deptId ? deptSchedMap.get(deptId) : undefined;
+              const schedH = userSched?.workStartStr ? userSched.workStartHour : (deptSched ? deptSched.workStartHour : 8);
+              const schedM = userSched?.workStartStr ? userSched.workStartMinute : (deptSched ? deptSched.workStartMinute : 0);
+              const grace = userSched ? userSched.gracePeriod : (deptSched ? deptSched.gracePeriod : 0);
+              isLate = checkIfLate(rawStatus, attLog.time_in, schedH, schedM, grace);
+            }
 
             if (isLate) {
               status = "Late";
@@ -563,6 +615,8 @@ export async function GET(request: NextRequest) {
             compAbsent++;
             totalAbsent++;
           }
+
+          const userSchedInfo = userSchedMap.get(userId);
 
           allRecords.push({
             id: isSingleDate ? `${companyId}-${userId}` : `${companyId}-${userId}-${tDate}`,
@@ -594,6 +648,9 @@ export async function GET(request: NextRequest) {
             leaveType,
             leaveReason,
             leaveDates,
+            isFlexible: userSchedInfo?.isFlexible ?? false,
+            scheduleWorkStart: userSchedInfo?.workStartStr || null,
+            scheduleWorkEnd: userSchedInfo?.workEndStr || null,
           });
         });
       });

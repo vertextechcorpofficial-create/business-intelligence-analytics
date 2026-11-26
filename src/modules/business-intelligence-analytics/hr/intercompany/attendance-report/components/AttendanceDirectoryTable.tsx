@@ -92,10 +92,17 @@ export function AttendanceDirectoryTable({
     switch (rec.attendanceStatus) {
       case "On Time":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="h-3 w-3" />
-            On Time
-          </span>
+          <div className="flex flex-col items-center">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <CheckCircle2 className="h-3 w-3" />
+              On Time
+            </span>
+            {rec.isFlexible && (
+              <span className="mt-0.5 inline-flex items-center px-1.5 py-0.2 rounded text-[9.5px] font-semibold bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20">
+                Flexible Time
+              </span>
+            )}
+          </div>
         );
       case "Late":
         return (
